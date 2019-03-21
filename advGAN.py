@@ -57,8 +57,10 @@ class AdvGAN_Attack:
             os.makedirs(models_path)
 
     def train_batch(self, x, labels):
+        
+        real = torch.sum(onehot_labels * probs_model, dim=1)
 
-        # optimize adv
+        # optimize advG
         for i in range(5):
 
             # clear grad
@@ -79,7 +81,6 @@ class AdvGAN_Attack:
             probs_model = F.softmax(logits_model, dim=1)
             onehot_labels = torch.eye(self.model_num_labels, device=self.device)[labels]
 
-            real = torch.sum(onehot_labels * probs_model, dim=1)
             other, _ = torch.max((1 - onehot_labels) * probs_model - onehot_labels * 10000, dim=1)
             zeros = torch.zeros_like(other)
             loss_adv = torch.max(real-other, zeros)
@@ -90,43 +91,42 @@ class AdvGAN_Attack:
             probs_model = F.softmax(logits_model, dim=1)
             onehot_labels = torch.eye(self.model_num_labels, device=self.device)[labels]
 
-            real = torch.sum(onehot_labels * probs_model, dim=1)
             other, _ = torch.max((1 - onehot_labels) * probs_model - onehot_labels * 10000, dim=1)
             zeros = torch.zeros_like(other)
             loss_def_adv = torch.max(real-other, zeros)
             loss_def_adv = torch.sum(loss_def_adv)
 
             # backprop
-            loss_advG = loss_adv + loss_def_adv
+            #loss_advG = loss_adv + loss_def_adv
+            loss_advG = loss_def_adv
             
             loss_advG.backward()
             self.optimizer_advG.step()
 
-        # optimize def
+        # optimize defG
         for i in range(1):
             
             # clear grad
             self.optimizer_defG.zero_grad()
 
-            # cal 
+            # make adv image
             adv_noise = self.advG(x)
             adv_images = adv_noise * self.eps + x
             adv_images = torch.clamp(adv_images, self.box_min, self.box_max)
             
+            # make def(adv) image
             def_adv_images = self.defG(adv_images) + adv_images
             def_adv_images = torch.clamp(def_adv_images, self.box_min, self.box_max)
             
+            # make def(nat) image
             def_nat_images = self.defG(x) + x
             def_nat_images = torch.clamp(def_nat_images, self.box_min, self.box_max)
-
-            self.optimizer_defG.zero_grad()
 
             # adv_image loss
             logits_model = self.model(def_adv_images)
             probs_model = F.softmax(logits_model, dim=1)
             onehot_labels = torch.eye(self.model_num_labels, device=self.device)[labels]
 
-            real = torch.sum(onehot_labels * probs_model, dim=1)
             other, _ = torch.max((1 - onehot_labels) * probs_model - onehot_labels * 10000, dim=1)
             zeros = torch.zeros_like(other)
             loss_adv = torch.max(other-real, zeros)
@@ -137,7 +137,6 @@ class AdvGAN_Attack:
             probs_model = F.softmax(logits_model, dim=1)
             onehot_labels = torch.eye(self.model_num_labels, device=self.device)[labels]
 
-            real = torch.sum(onehot_labels * probs_model, dim=1)
             other, _ = torch.max((1 - onehot_labels) * probs_model - onehot_labels * 10000, dim=1)
             zeros = torch.zeros_like(other)
             loss_nat = torch.max(other-real, zeros)

@@ -16,6 +16,7 @@ gen_input_nc = image_nc
 # Define what device we are using
 print("CUDA Available: ",torch.cuda.is_available())
 device = torch.device("cuda" if (use_cuda and torch.cuda.is_available()) else "cpu")
+print()
 
 # load the pretrained model
 pretrained_model = "./MNIST_target_model.pth"
