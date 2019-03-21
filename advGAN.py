@@ -58,8 +58,6 @@ class AdvGAN_Attack:
 
     def train_batch(self, x, labels):
         
-        real = torch.sum(onehot_labels * probs_model, dim=1)
-
         # optimize advG
         for i in range(5):
 
@@ -77,24 +75,12 @@ class AdvGAN_Attack:
             def_adv_images = torch.clamp(def_adv_images, self.box_min, self.box_max)
 
             # cal adv loss
-            logits_model = self.model(adv_images)
-            probs_model = F.softmax(logits_model, dim=1)
-            onehot_labels = torch.eye(self.model_num_labels, device=self.device)[labels]
-
-            other, _ = torch.max((1 - onehot_labels) * probs_model - onehot_labels * 10000, dim=1)
-            zeros = torch.zeros_like(other)
-            loss_adv = torch.max(real-other, zeros)
-            loss_adv = torch.sum(loss_adv)
+            logits_model_adv = self.model(adv_images)
+            loss_adv = -F.cross_entropy(logits_model_adv, labels)
 
             # cal def(adv) loss
-            logits_model = self.model(def_adv_images)
-            probs_model = F.softmax(logits_model, dim=1)
-            onehot_labels = torch.eye(self.model_num_labels, device=self.device)[labels]
-
-            other, _ = torch.max((1 - onehot_labels) * probs_model - onehot_labels * 10000, dim=1)
-            zeros = torch.zeros_like(other)
-            loss_def_adv = torch.max(real-other, zeros)
-            loss_def_adv = torch.sum(loss_def_adv)
+            logits_model_def_adv = self.model(def_adv_images)
+            loss_def_adv = -F.cross_entropy(logits_model_def_adv, labels)
 
             # backprop
             #loss_advG = loss_adv + loss_def_adv
@@ -123,31 +109,19 @@ class AdvGAN_Attack:
             def_nat_images = torch.clamp(def_nat_images, self.box_min, self.box_max)
 
             # adv_image loss
-            logits_model = self.model(def_adv_images)
-            probs_model = F.softmax(logits_model, dim=1)
-            onehot_labels = torch.eye(self.model_num_labels, device=self.device)[labels]
-
-            other, _ = torch.max((1 - onehot_labels) * probs_model - onehot_labels * 10000, dim=1)
-            zeros = torch.zeros_like(other)
-            loss_adv = torch.max(other-real, zeros)
-            loss_adv = torch.sum(loss_adv)
+            logits_model_def_adv = self.model(def_adv_images)
+            loss_def_adv = F.cross_entropy(logits_model_def_adv, labels)
 
             # nat_image loss
-            logits_model = self.model(def_nat_images)
-            probs_model = F.softmax(logits_model, dim=1)
-            onehot_labels = torch.eye(self.model_num_labels, device=self.device)[labels]
+            logits_model_def = self.model(def_nat_images)
+            loss_def = F.cross_entropy(logits_model_def, labels)
 
-            other, _ = torch.max((1 - onehot_labels) * probs_model - onehot_labels * 10000, dim=1)
-            zeros = torch.zeros_like(other)
-            loss_nat = torch.max(other-real, zeros)
-            loss_nat = torch.sum(loss_nat)
-
-            loss_defG = loss_adv + loss_nat
+            loss_defG = loss_def_adv + loss_def
             
             loss_defG.backward()
             self.optimizer_defG.step()
 
-        return loss_advG.item(), loss_defG.item()
+        return torch.sum(loss_advG).item(), torch.sum(loss_defG).item()
 
     def train(self, train_dataloader, epochs):
         for epoch in range(1, epochs+1):
