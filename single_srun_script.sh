@@ -16,7 +16,7 @@
 
 #SBATCH --output slurm-%j.out
 
-#SBATCH --qos normal
+#SBATCH --qos mllab
 
 hostname
 

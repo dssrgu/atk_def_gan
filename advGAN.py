@@ -39,7 +39,7 @@ class AdvGAN_Attack:
         self.eps = eps
 
         self.en_input_nc = image_nc
-        self.enc = models.Encoder(self.en_input_nc)
+        self.enc = models.Encoder(self.en_input_nc).to(device)
         self.advG = models.Generator(image_nc).to(device)
         self.defG = models.Generator(image_nc, False).to(device)
 
@@ -131,7 +131,7 @@ class AdvGAN_Attack:
             # clear grad
             self.optimizer_defG.zero_grad()
 
-            _, def_adv_images, def_nat_images = self.gen_images(x, labels)
+            _, def_adv_images, def_images = self.gen_images(x, labels)
 
             # def(adv) loss
             logits_model_def_adv = self.model(def_adv_images)
