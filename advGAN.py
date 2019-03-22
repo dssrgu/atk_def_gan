@@ -64,11 +64,11 @@ class AdvGAN_Attack:
     # generate images for training
     def gen_images(self, x, labels):
 
-        target_labels = torch.randint_like(labels, 0, 10)
-        target_labels_one_hot = nn.functional.one_hot(target_labels, 10)
+        target_labels = torch.randint_like(labels, 0, self.model_num_labels)
+        target_one_hot = torch.eye(self.model_num_labels, device=self.device)[target_labels]
 
         # make adv image
-        adv_images = self.advG(self.enc(x), target_labels_one_hot) * self.eps + x
+        adv_images = self.advG(self.enc(x), target_one_hot) * self.eps + x
         adv_images = torch.clamp(adv_images, self.box_min, self.box_max)
 
         # make def(adv) image
