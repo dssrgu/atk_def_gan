@@ -106,11 +106,12 @@ def tester(dataset, dataloader, save_img=False):
         num_correct_def_pgd += torch.sum(pred_def_pgd==test_label,0)
         num_correct += torch.sum(pred==test_label,0)
 
-        test_img_full.append(test_img)
-        adv_img_full.append(adv_img)
-        def_img_full.append(def_img)
-        def_adv_img_full.append(def_adv_img)
-        def_pgd_img_full.append(def_pgd_img)
+        if save_img and i < 1:
+            test_img_full.append(test_img)
+            adv_img_full.append(adv_img)
+            def_img_full.append(def_img)
+            def_adv_img_full.append(def_adv_img)
+            def_pgd_img_full.append(def_pgd_img)
 
     print('num_correct(adv): ', num_correct_adv.item())
     print('num_correct(pgd): ', num_correct_pgd.item())
@@ -128,12 +129,19 @@ def tester(dataset, dataloader, save_img=False):
     
     print()
 
+    
     if save_img:
-        test_grid = make_grid(test_img_full, 10)
-        adv_grid = make_grid(adv_img_full, 10)
-        def_grid = make_grid(def_img_full, 10)
-        def_adv_grid = make_grid(def_adv_img_full, 10)
-        def_pgd_grid = make_grid(def_pgd_img_full, 10)
+        test_img_full = torch.cat(test_img_full)
+        adv_img_full = torch.cat(adv_img_full)
+        def_img_full = torch.cat(def_img_full)
+        def_adv_img_full = torch.cat(def_adv_img_full)
+        def_pgd_img_full = torch.cat(def_pgd_img_full)
+        
+        test_grid = make_grid(test_img_full)
+        adv_grid = make_grid(adv_img_full)
+        def_grid = make_grid(def_img_full)
+        def_adv_grid = make_grid(def_adv_img_full)
+        def_pgd_grid = make_grid(def_pgd_img_full)
 
         save_image(test_grid, './out/test_grid.png')
         save_image(adv_grid, './out/adv_grid.png')
