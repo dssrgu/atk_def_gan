@@ -69,11 +69,11 @@ class Generator(nn.Module):
         vec_encoder_lis = [
             # input dim: vec_nc x 1 x 1
             nn.ConvTranspose2d(vec_nc, 16, 3, stride=1, bias=True),
-            nn.InstanceNorm2d(8),
+            nn.InstanceNorm2d(16),
             nn.ReLU(),
             # state dim: 16 x 3 x 3
             nn.ConvTranspose2d(16, 32, 3, stride=1, bias=True),
-            nn.BatchNorm2d(5),
+            nn.InstanceNorm2d(32),
             nn.ReLU(),
             # state dim: 32 x 5 x 5
         ]
