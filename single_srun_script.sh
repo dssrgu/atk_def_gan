@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --partition all
+#SBATCH --partition mllab
 
 #SBATCH --nodes 1
 
@@ -16,7 +16,7 @@
 
 #SBATCH --output slurm-%j.out
 
-#SBATCH --qos mllab
+#SBATCH --qos normal
 
 hostname
 

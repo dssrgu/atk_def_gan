@@ -1,9 +1,9 @@
 import torch.nn as nn
 import torch
-import numpy as np
+#import numpy as np
 import models
 import torch.nn.functional as F
-import torchvision
+#import torchvision
 import os
 
 models_path = './models/'
@@ -87,18 +87,19 @@ class AdvGAN_Attack:
             adv_images, def_adv_images, def_images = self.gen_images(x, labels)
 
             # adv loss
-            logits_model_adv = self.model(adv_images)
-            loss_adv = F.cross_entropy(logits_model_adv, labels)
+            logits_adv = self.model(adv_images)
+            loss_adv = F.cross_entropy(logits_adv, labels)
 
             # def(adv) loss
-            logits_model_def_adv = self.model(def_adv_images)
-            loss_def_adv = F.cross_entropy(logits_model_def_adv, labels)
+            logits_def_adv = self.model(def_adv_images)
+            loss_def_adv = F.cross_entropy(logits_def_adv, labels)
 
             # def(nat) loss
-            logits_model_def = self.model(def_images)
-            loss_def = F.cross_entropy(logits_model_def, labels)
+            logits_def = self.model(def_images)
+            loss_def = F.cross_entropy(logits_def, labels)
 
-            loss_enc = loss_adv + loss_def_adv + loss_def
+            #loss_enc = loss_adv + loss_def_adv + loss_def
+            loss_enc = -loss_adv + loss_def
 
             loss_enc.backward()
             self.optimizer_enc.step()
@@ -112,12 +113,12 @@ class AdvGAN_Attack:
             adv_images, def_adv_images, _ = self.gen_images(x, labels)
 
             # adv loss
-            logits_model_adv = self.model(adv_images)
-            loss_adv = -F.cross_entropy(logits_model_adv, labels)
+            logits_adv = self.model(adv_images)
+            loss_adv = -F.cross_entropy(logits_adv, labels)
 
             # def(adv) loss
-            logits_model_def_adv = self.model(def_adv_images)
-            loss_def_adv = -F.cross_entropy(logits_model_def_adv, labels)
+            logits_def_adv = self.model(def_adv_images)
+            loss_def_adv = -F.cross_entropy(logits_def_adv, labels)
 
             # backprop
             loss_advG = loss_adv + loss_def_adv
@@ -134,12 +135,12 @@ class AdvGAN_Attack:
             _, def_adv_images, def_images = self.gen_images(x, labels)
 
             # def(adv) loss
-            logits_model_def_adv = self.model(def_adv_images)
-            loss_def_adv = F.cross_entropy(logits_model_def_adv, labels)
+            logits_def_adv = self.model(def_adv_images)
+            loss_def_adv = F.cross_entropy(logits_def_adv, labels)
 
             # def(nat) loss
-            logits_model_def = self.model(def_images)
-            loss_def = F.cross_entropy(logits_model_def, labels)
+            logits_def = self.model(def_images)
+            loss_def = F.cross_entropy(logits_def, labels)
 
             loss_defG = loss_def_adv + loss_def
             

@@ -3,8 +3,9 @@ import torch
 import torch.nn as nn
 
 class PGD(object):
-    def __init__(self, model=None, defG=None, device=None, eps=0.3, num_steps=10, step_size=0.075):
+    def __init__(self, model=None, enc=None, defG=None, device=None, eps=0.3, num_steps=10, step_size=0.075):
         self.model = model
+        self.enc = enc
         self.defG = defG
         self.device = device
         self.eps = eps
@@ -21,8 +22,8 @@ class PGD(object):
             X_var = torch.from_numpy(X).to(self.device)
             X_var.requires_grad = True
 
-            if self.defG:
-                scores = self.model(self.defG(X_var) + X_var)
+            if self.enc and self.defG:
+                scores = self.model(self.defG(self.enc(X_var)) + X_var)
             else:
                 scores = self.model(X_var)
 
