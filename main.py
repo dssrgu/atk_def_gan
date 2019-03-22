@@ -7,6 +7,7 @@ from models import MNIST_target_net
 
 use_cuda=True
 image_nc=1
+vec_nc=10
 epochs = 60
 batch_size = 128
 BOX_MIN = 0
@@ -30,6 +31,7 @@ advGAN = AdvGAN_Attack(device,
                           targeted_model,
                           model_num_labels,
                           image_nc,
+                          vec_nc,
                           BOX_MIN,
                           BOX_MAX,
                           eps)

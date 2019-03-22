@@ -59,15 +59,28 @@ class Discriminator(nn.Module):
 class Generator(nn.Module):
     def __init__(self,
                  image_nc,
+                 vec_nc=10,
                  adv=True,
                  ):
         super(Generator, self).__init__()
 
         self.adv = adv
 
+        vec_encoder_lis = [
+            # input dim: vec_nc x 1 x 1
+            nn.ConvTranspose2d(vec_nc, 16, 3, stride=1, bias=True),
+            nn.InstanceNorm2d(8),
+            nn.ReLU(),
+            # state dim: 16 x 3 x 3
+            nn.ConvTranspose2d(16, 32, 3, stride=1, bias=True),
+            nn.BatchNorm2d(5),
+            nn.ReLU(),
+            # state dim: 32 x 5 x 5
+        ]
 
         bottle_neck_lis = [ResnetBlock(32),
-                       ResnetBlock(32),]
+                           ResnetBlock(32),
+                           ]
 
         decoder_lis = [
             nn.ConvTranspose2d(32, 16, kernel_size=3, stride=2, padding=0, bias=False),
@@ -86,12 +99,17 @@ class Generator(nn.Module):
             nn.Tanh(),
         ]
 
+        self.vec_encoder_lis = nn.Sequential(*vec_encoder_lis)
         self.bottle_neck = nn.Sequential(*bottle_neck_lis)
         self.decoder = nn.Sequential(*decoder_lis)
         self.tanh = nn.Sequential(*tanh_lis)
 
-    def forward(self, x):
-        x = self.bottle_neck(x)
+    def forward(self, x, v=None):
+        if self.adv:
+            v = self.vec_encoder_lis(v)
+            x = self.bottle_neck(x+v)
+        else:
+            x = self.bottel_neck(x)
         x = self.decoder(x)
         if self.adv:
             x = self.tanh(x)

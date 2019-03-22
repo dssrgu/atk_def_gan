@@ -46,7 +46,7 @@ advG.load_state_dict(torch.load(advG_path))
 advG.eval()
 
 defG_path = './models/defG_epoch_{}.pth'.format(epoch)
-defG = models.Generator(image_nc, False).to(device)
+defG = models.Generator(image_nc, adv=False).to(device)
 defG.load_state_dict(torch.load(defG_path))
 defG.eval()
 

@@ -25,6 +25,7 @@ class AdvGAN_Attack:
                  model,
                  model_num_labels,
                  image_nc,
+                 vec_nc,
                  box_min,
                  box_max,
                  eps):
@@ -33,6 +34,7 @@ class AdvGAN_Attack:
         self.model_num_labels = model_num_labels
         self.model = model
         self.input_nc = image_nc
+        self.vec_nc = vec_nc
         self.output_nc = output_nc
         self.box_min = box_min
         self.box_max = box_max
@@ -41,7 +43,7 @@ class AdvGAN_Attack:
         self.en_input_nc = image_nc
         self.enc = models.Encoder(self.en_input_nc).to(device)
         self.advG = models.Generator(image_nc).to(device)
-        self.defG = models.Generator(image_nc, False).to(device)
+        self.defG = models.Generator(image_nc, vec_nc, adv=False).to(device)
 
         # initialize all weights
         self.enc.apply(weights_init)
@@ -62,8 +64,10 @@ class AdvGAN_Attack:
     # generate images for training
     def gen_images(self, x, labels):
 
+        target_labels = torch.randint_like(labels, 0, 10)
+
         # make adv image
-        adv_images = self.advG(self.enc(x)) * self.eps + x
+        adv_images = self.advG(self.enc(x), target_labels) * self.eps + x
         adv_images = torch.clamp(adv_images, self.box_min, self.box_max)
 
         # make def(adv) image
@@ -74,7 +78,7 @@ class AdvGAN_Attack:
         def_images = self.defG(self.enc(x)) + x
         def_images = torch.clamp(def_images, self.box_min, self.box_max)
 
-        return adv_images, def_adv_images, def_images
+        return target_labels, adv_images, def_adv_images, def_images
 
     def train_batch(self, x, labels):
 
@@ -84,7 +88,7 @@ class AdvGAN_Attack:
             #clear grad
             self.optimizer_enc.zero_grad()
 
-            adv_images, def_adv_images, def_images = self.gen_images(x, labels)
+            _, adv_images, def_adv_images, def_images = self.gen_images(x, labels)
 
             # adv loss
             logits_adv = self.model(adv_images)
@@ -98,8 +102,7 @@ class AdvGAN_Attack:
             logits_def = self.model(def_images)
             loss_def = F.cross_entropy(logits_def, labels)
 
-            #loss_enc = loss_adv + loss_def_adv + loss_def
-            loss_enc = -loss_adv + loss_def
+            loss_enc = loss_adv + loss_def_adv + loss_def
 
             loss_enc.backward()
             self.optimizer_enc.step()
@@ -110,15 +113,15 @@ class AdvGAN_Attack:
             # clear grad
             self.optimizer_advG.zero_grad()
 
-            adv_images, def_adv_images, _ = self.gen_images(x, labels)
+            target_labels, adv_images, def_adv_images, _ = self.gen_images(x, labels)
 
             # adv loss
             logits_adv = self.model(adv_images)
-            loss_adv = -F.cross_entropy(logits_adv, labels)
+            loss_adv = F.cross_entropy(logits_adv, target_labels)
 
             # def(adv) loss
             logits_def_adv = self.model(def_adv_images)
-            loss_def_adv = -F.cross_entropy(logits_def_adv, labels)
+            loss_def_adv = F.cross_entropy(logits_def_adv, target_labels)
 
             # backprop
             loss_advG = loss_adv + loss_def_adv
@@ -132,7 +135,7 @@ class AdvGAN_Attack:
             # clear grad
             self.optimizer_defG.zero_grad()
 
-            _, def_adv_images, def_images = self.gen_images(x, labels)
+            _, _, def_adv_images, def_images = self.gen_images(x, labels)
 
             # def(adv) loss
             logits_def_adv = self.model(def_adv_images)
