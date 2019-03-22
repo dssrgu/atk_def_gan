@@ -29,7 +29,7 @@ class MNIST_target_net(nn.Module):
         x = self.logits(x)
         return x
 
-
+# not used
 class Discriminator(nn.Module):
     def __init__(self, image_nc):
         super(Discriminator, self).__init__()
@@ -58,7 +58,6 @@ class Discriminator(nn.Module):
 
 class Generator(nn.Module):
     def __init__(self,
-                 gen_input_nc,
                  image_nc,
                  adv=True,
                  ):
@@ -66,25 +65,8 @@ class Generator(nn.Module):
 
         self.adv = adv
 
-        encoder_lis = [
-            # MNIST:1*28*28
-            nn.Conv2d(gen_input_nc, 8, kernel_size=3, stride=1, padding=0, bias=True),
-            nn.InstanceNorm2d(8),
-            nn.ReLU(),
-            # 8*26*26
-            nn.Conv2d(8, 16, kernel_size=3, stride=2, padding=0, bias=True),
-            nn.InstanceNorm2d(16),
-            nn.ReLU(),
-            # 16*12*12
-            nn.Conv2d(16, 32, kernel_size=3, stride=2, padding=0, bias=True),
-            nn.InstanceNorm2d(32),
-            nn.ReLU(),
-            # 32*5*5
-        ]
 
         bottle_neck_lis = [ResnetBlock(32),
-                       ResnetBlock(32),
-                       ResnetBlock(32),
                        ResnetBlock(32),]
 
         decoder_lis = [
@@ -104,19 +86,50 @@ class Generator(nn.Module):
             nn.Tanh(),
         ]
 
-        self.encoder = nn.Sequential(*encoder_lis)
         self.bottle_neck = nn.Sequential(*bottle_neck_lis)
         self.decoder = nn.Sequential(*decoder_lis)
         self.tanh = nn.Sequential(*tanh_lis)
 
     def forward(self, x):
-        x = self.encoder(x)
         x = self.bottle_neck(x)
         x = self.decoder(x)
         if self.adv:
             x = self.tanh(x)
         return x
 
+class Encoder(nn.Module):
+    def __init__(self,
+                 en_input_nc,
+                 ):
+        super(Encoder, self).__init__()
+
+        encoder_lis = [
+            # MNIST:1*28*28
+            nn.Conv2d(en_input_nc, 8, kernel_size=3, stride=1, padding=0, bias=True),
+            nn.InstanceNorm2d(8),
+            nn.ReLU(),
+            # 8*26*26
+            nn.Conv2d(8, 16, kernel_size=3, stride=2, padding=0, bias=True),
+            nn.InstanceNorm2d(16),
+            nn.ReLU(),
+            # 16*12*12
+            nn.Conv2d(16, 32, kernel_size=3, stride=2, padding=0, bias=True),
+            nn.InstanceNorm2d(32),
+            nn.ReLU(),
+            # 32*5*5
+        ]
+
+        bottle_neck_lis = [ResnetBlock(32),
+                           ResnetBlock(32),
+                           ]
+
+        self.encoder = nn.Sequential(*encoder_lis)
+        self.bottle_neck = nn.Sequential(*bottle_neck_lis)
+
+    def forward(self, x):
+        x = self.encoder(x)
+        x = self.bottle_neck(x)
+        return x
 
 # Define a resnet block
 # modified from https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/blob/master/models/networks.py

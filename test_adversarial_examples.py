@@ -11,7 +11,7 @@ image_nc=1
 batch_size = 128
 eps = 0.3
 
-gen_input_nc = image_nc
+en_input_nc = image_nc
 
 # Define what device we are using
 print("CUDA Available: ",torch.cuda.is_available())
@@ -19,24 +19,29 @@ device = torch.device("cuda" if (use_cuda and torch.cuda.is_available()) else "c
 print()
 
 # load the pretrained model
-pretrained_model = "./MNIST_target_model.pth"
+model_path = "./MNIST_target_model.pth"
 target_model = MNIST_target_net().to(device)
-target_model.load_state_dict(torch.load(pretrained_model))
+target_model.load_state_dict(torch.load(model_path))
 target_model.eval()
 
-# load noise generators
-pretrained_advG_path = './models/advG_epoch_60.pth'
-pretrained_advG = models.Generator(gen_input_nc, image_nc).to(device)
-pretrained_advG.load_state_dict(torch.load(pretrained_advG_path))
-pretrained_advG.eval()
+# load encoder & generators
+enc_path = './models/enc_epoch_60.pth'
+enc = models.Encoder(en_input_nc).to(device)
+enc.load_state_dict(torch.load(enc_path))
+enc.eval()
 
-pretrained_defG_path = './models/defG_epoch_60.pth'
-pretrained_defG = models.Generator(gen_input_nc, image_nc).to(device)
-pretrained_defG.load_state_dict(torch.load(pretrained_defG_path))
-pretrained_defG.eval()
+advG_path = './models/advG_epoch_60.pth'
+advG = models.Generator(image_nc).to(device)
+advG.load_state_dict(torch.load(advG_path))
+advG.eval()
+
+defG_path = './models/defG_epoch_60.pth'
+defG = models.Generator(image_nc, False).to(device)
+defG.load_state_dict(torch.load(defG_path))
+defG.eval()
 
 # load PGD attack
-pgd = PGD(target_model, pretrained_defG, device)
+pgd = PGD(target_model, defG, device)
 
 def tester(dataset, dataloader):
     num_correct_adv = 0
@@ -51,21 +56,21 @@ def tester(dataset, dataloader):
         test_img, test_label = test_img.to(device), test_label.to(device)
         
         # prep images
-        adv_noise = pretrained_advG(test_img)
+        adv_noise = advG(enc(test_img))
         adv_img = adv_noise * eps + test_img
         adv_img = torch.clamp(adv_img, 0, 1)
         
-        def_adv_noise = pretrained_defG(adv_img)
+        def_adv_noise = defG(enc(adv_img))
         def_adv_img = def_adv_noise + adv_img
         def_adv_img = torch.clamp(def_adv_img, 0, 1)
 
-        def_nat_noise = pretrained_defG(test_img)
+        def_nat_noise = defG(enc(test_img))
         def_nat_img = def_nat_noise + test_img
         def_nat_img = torch.clamp(def_nat_img, 0, 1)
 
         pgd_img = pgd.perturb(test_img, test_label)
         
-        def_pgd_noise = pretrained_defG(pgd_img)
+        def_pgd_noise = defG(enc(pgd_img))
         def_pgd_img = def_pgd_noise + pgd_img
         def_pgd_img = torch.clamp(def_pgd_img, 0, 1)
 
