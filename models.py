@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -82,8 +83,11 @@ class Generator(nn.Module):
                            ResnetBlock(32),
                            ]
 
+        decoder_nc = 32
+        decoder_nc = decoder_nc*2 if self.adv else decoder_nc
+
         decoder_lis = [
-            nn.ConvTranspose2d(32, 16, kernel_size=3, stride=2, padding=0, bias=False),
+            nn.ConvTranspose2d(decoder_nc, 16, kernel_size=3, stride=2, padding=0, bias=False),
             nn.InstanceNorm2d(16),
             nn.ReLU(),
             # state size. 16 x 11 x 11
@@ -105,14 +109,18 @@ class Generator(nn.Module):
         self.tanh = nn.Sequential(*tanh_lis)
 
     def forward(self, x, v=None):
+        
+        x = self.bottle_neck(x)
+
         if self.adv:
             v = self.vec_encoder_lis(v)
-            x = self.bottle_neck(x+v)
-        else:
-            x = self.bottel_neck(x)
+            x = torch.cat((x, v), dim=1)
+            
         x = self.decoder(x)
+
         if self.adv:
             x = self.tanh(x)
+
         return x
 
 class Encoder(nn.Module):

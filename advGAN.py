@@ -28,7 +28,8 @@ class AdvGAN_Attack:
                  vec_nc,
                  box_min,
                  box_max,
-                 eps):
+                 eps,
+                 model_name):
         output_nc = image_nc
         self.device = device
         self.model_num_labels = model_num_labels
@@ -39,6 +40,7 @@ class AdvGAN_Attack:
         self.box_min = box_min
         self.box_max = box_max
         self.eps = eps
+        self.model_name = (model_name + '_') if model_name else model_name
 
         self.en_input_nc = image_nc
         self.enc = models.Encoder(self.en_input_nc).to(device)
@@ -193,9 +195,9 @@ class AdvGAN_Attack:
 
             # save generator
             if epoch%20==0:
-                enc_file_name = models_path + 'enc_epoch_' + str(epoch) + '.pth'
-                advG_file_name = models_path + 'advG_epoch_' + str(epoch) + '.pth'
-                defG_file_name = models_path + 'defG_epoch_' + str(epoch) + '.pth'
+                enc_file_name = models_path + self.model_name + 'enc_epoch_' + str(epoch) + '.pth'
+                advG_file_name = models_path + self.model_name + 'advG_epoch_' + str(epoch) + '.pth'
+                defG_file_name = models_path + self.model_name + 'defG_epoch_' + str(epoch) + '.pth'
                 torch.save(self.enc.state_dict(), enc_file_name)
                 torch.save(self.advG.state_dict(), advG_file_name)
                 torch.save(self.defG.state_dict(), defG_file_name)

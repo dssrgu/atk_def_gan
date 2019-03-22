@@ -4,6 +4,7 @@ import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 from advGAN import AdvGAN_Attack
 from models import MNIST_target_net
+import argparse
 
 use_cuda=True
 image_nc=1
@@ -13,6 +14,12 @@ batch_size = 128
 BOX_MIN = 0
 BOX_MAX = 1
 eps = 0.3
+
+parser = argparse.ArgumentParser()
+
+parser.add_argument('--model_name', default='', type=str)
+
+args = parser.parse_args()
 
 # Define what device we are using
 print("CUDA Available: ",torch.cuda.is_available())
@@ -34,6 +41,7 @@ advGAN = AdvGAN_Attack(device,
                           vec_nc,
                           BOX_MIN,
                           BOX_MAX,
-                          eps)
+                          eps,
+                          args.model_name)
 
 advGAN.train(dataloader, epochs)
