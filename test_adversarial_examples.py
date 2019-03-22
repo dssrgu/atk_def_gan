@@ -11,6 +11,7 @@ import argparse
 parser = argparse.ArgumentParser()
 
 parser.add_argument('--epoch', default=60, type=int)
+parser.add_argument('--model_name', default='', type=str)
 
 args = parser.parse_args()
 
@@ -33,19 +34,20 @@ target_model.load_state_dict(torch.load(model_path))
 target_model.eval()
 
 epoch=args.epoch
+model_name = (args.model_name+'_') if args.model_name else args.model_name
 
 # load encoder & generators
-enc_path = './models/enc_epoch_{}.pth'.format(epoch)
+enc_path = './models/' + model_name + 'enc_epoch_{}.pth'.format(epoch)
 enc = models.Encoder(en_input_nc).to(device)
 enc.load_state_dict(torch.load(enc_path))
 enc.eval()
 
-advG_path = './models/advG_epoch_{}.pth'.format(epoch)
+advG_path = './models/' + model_name + 'advG_epoch_{}.pth'.format(epoch)
 advG = models.Generator(image_nc).to(device)
 advG.load_state_dict(torch.load(advG_path))
 advG.eval()
 
-defG_path = './models/defG_epoch_{}.pth'.format(epoch)
+defG_path = './models/' + model_name + 'defG_epoch_{}.pth'.format(epoch)
 defG = models.Generator(image_nc, adv=False).to(device)
 defG.load_state_dict(torch.load(defG_path))
 defG.eval()
@@ -71,9 +73,13 @@ def tester(dataset, dataloader, save_img=False):
         # load images
         test_img, test_label = data
         test_img, test_label = test_img.to(device), test_label.to(device)
+
+        target_labels = torch.randint_like(test_label, 0, 10)
+        target_one_hot = torch.eye(10, device=device)[target_labels]
+        target_one_hot = target_one_hot.view(-1, 10, 1, 1)
         
         # prep images
-        adv_noise = advG(enc(test_img))
+        adv_noise = advG(enc(test_img), target_one_hot)
         adv_img = adv_noise * eps + test_img
         adv_img = torch.clamp(adv_img, 0, 1)
         

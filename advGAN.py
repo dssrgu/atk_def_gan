@@ -112,7 +112,7 @@ class AdvGAN_Attack:
             self.optimizer_enc.step()
 
         # optimize advG
-        for i in range(1):
+        for i in range(5):
 
             # clear grad
             self.optimizer_advG.zero_grad()

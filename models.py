@@ -84,7 +84,7 @@ class Generator(nn.Module):
                            ]
 
         decoder_nc = 32
-        decoder_nc = decoder_nc*2 if self.adv else decoder_nc
+        #decoder_nc = decoder_nc*2 if self.adv else decoder_nc
 
         decoder_lis = [
             nn.ConvTranspose2d(decoder_nc, 16, kernel_size=3, stride=2, padding=0, bias=False),
@@ -109,13 +109,20 @@ class Generator(nn.Module):
         self.tanh = nn.Sequential(*tanh_lis)
 
     def forward(self, x, v=None):
-        
+        '''
         x = self.bottle_neck(x)
 
         if self.adv:
             v = self.vec_encoder_lis(v)
             x = torch.cat((x, v), dim=1)
-            
+        '''
+        
+        if self.adv:
+            v = self.vec_encoder_lis(v)
+            x = self.bottle_neck(x+v)
+        else:
+            x = self.bottle_neck(x)
+
         x = self.decoder(x)
 
         if self.adv:
