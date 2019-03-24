@@ -1,4 +1,4 @@
-import torch
+#import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -119,7 +119,7 @@ class Generator(nn.Module):
         
         if self.adv:
             v = self.vec_encoder_lis(v)
-            x = self.bottle_neck(x+v)
+            x = self.bottle_neck(x) + v
         else:
             x = self.bottle_neck(x)
 
