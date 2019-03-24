@@ -1,4 +1,4 @@
-#import torch
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -163,6 +163,41 @@ class Encoder(nn.Module):
         x = self.encoder(x)
         x = self.bottle_neck(x)
         return x
+
+# Mutual Information Neural Estimator
+class Mine(nn.Module):
+    def __init__(self, image_nc, vec_nc):
+        super(Discriminator, self).__init__()
+        # MNIST: 1*28*28
+        image_encoder = [
+            nn.Conv2d(image_nc, 8, kernel_size=4, stride=2, padding=0, bias=True),
+            nn.LeakyReLU(0.2),
+            # 8*13*13
+            nn.Conv2d(8, 16, kernel_size=4, stride=2, padding=0, bias=True),
+            nn.BatchNorm2d(16),
+            nn.LeakyReLU(0.2),
+            # 16*5*5
+            nn.Conv2d(16, 32, kernel_size=4, stride=2, padding=0, bias=True),
+            nn.BatchNorm2d(32),
+            nn.LeakyReLU(0.2),
+            nn.Conv2d(32, 1, 1),
+            nn.Sigmoid()
+            # 32*1*1
+        ]
+
+        estimator = [
+            nn.Linear(vec_nc + 32, 1024),
+            nn.ReLU(),
+            nn.Linear(1024, 1)
+        ]
+        self.image_encoder = nn.Sequential(*image_encoder)
+        self.estimator = nn.Sequantial(*estimator)
+
+    def forward(self, x, v):
+        x = self.image_encoder(x)
+        x_v = torch.cat(x, v)
+        output = self.estimator(x_v)
+        return output
 
 # Define a resnet block
 # modified from https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/blob/master/models/networks.py
