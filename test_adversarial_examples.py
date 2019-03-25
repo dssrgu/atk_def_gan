@@ -40,10 +40,10 @@ epoch=args.epoch
 model_name = (args.model_name+'_') if args.model_name else args.model_name
 
 # load encoder & generators
-enc_path = './models/' + model_name + 'enc_epoch_{}.pth'.format(epoch)
-enc = models.Encoder(en_input_nc).to(device)
-enc.load_state_dict(torch.load(enc_path))
-enc.eval()
+E_path = './models/' + model_name + 'E_epoch_{}.pth'.format(epoch)
+E = models.Encoder(en_input_nc).to(device)
+E.load_state_dict(torch.load(E_path))
+E.eval()
 
 advG_path = './models/' + model_name + 'advG_epoch_{}.pth'.format(epoch)
 advG = models.Generator(image_nc, vec_nc).to(device)
@@ -56,7 +56,7 @@ defG.load_state_dict(torch.load(defG_path))
 defG.eval()
 
 # load PGD attack
-pgd = PGD(target_model, enc, defG, device)
+pgd = PGD(target_model, E, defG, device)
 
 def tester(dataset, dataloader, save_img=False):
     num_correct_adv = 0
@@ -83,21 +83,21 @@ def tester(dataset, dataloader, save_img=False):
         target_one_hot = target_one_hot.view(-1, 10, 1, 1)
         
         # prep images
-        adv_noise = advG(enc(test_img), target_one_hot)
+        adv_noise = advG(E(test_img), target_one_hot)
         adv_img = adv_noise * eps + test_img
         adv_img = torch.clamp(adv_img, 0, 1)
         
-        def_adv_noise = defG(enc(adv_img))
+        def_adv_noise = defG(E(adv_img))
         def_adv_img = def_adv_noise + adv_img
         def_adv_img = torch.clamp(def_adv_img, 0, 1)
 
-        def_noise = defG(enc(test_img))
+        def_noise = defG(E(test_img))
         def_img = def_noise + test_img
         def_img = torch.clamp(def_img, 0, 1)
 
         pgd_img = pgd.perturb(test_img, test_label)
         
-        def_pgd_noise = defG(enc(pgd_img))
+        def_pgd_noise = defG(E(pgd_img))
         def_pgd_img = def_pgd_noise * eps + pgd_img
         def_pgd_img = torch.clamp(def_pgd_img, 0, 1)
 
