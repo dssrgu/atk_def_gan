@@ -13,7 +13,7 @@ class PGD(object):
         self.step_size = step_size
         self.loss_fn = nn.CrossEntropyLoss()
 
-    def perturb(self, X_ori, y):
+    def perturb(self, X_ori, y, base=False):
 
         X_nat = np.copy(X_ori)
         X = np.copy(X_nat)
@@ -22,7 +22,7 @@ class PGD(object):
             X_var = torch.from_numpy(X).to(self.device)
             X_var.requires_grad = True
 
-            if self.enc and self.defG:
+            if not base and (self.enc and self.defG):
                 scores = self.model(self.defG(self.enc(X_var)) * self.eps + X_var)
             else:
                 scores = self.model(X_var)

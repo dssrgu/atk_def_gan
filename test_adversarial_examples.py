@@ -68,6 +68,7 @@ def tester(dataset, dataloader, save_img=False):
 
     test_img_full = []
     adv_img_full = []
+    pgd_img_full = []
     def_img_full = []
     def_adv_img_full = []
     def_pgd_img_full = []
@@ -87,11 +88,11 @@ def tester(dataset, dataloader, save_img=False):
         adv_img = torch.clamp(adv_img, 0, 1)
         
         def_adv_noise = defG(enc(adv_img))
-        def_adv_img = def_adv_noise * eps + adv_img
+        def_adv_img = def_adv_noise + adv_img
         def_adv_img = torch.clamp(def_adv_img, 0, 1)
 
         def_noise = defG(enc(test_img))
-        def_img = def_noise * eps + test_img
+        def_img = def_noise + test_img
         def_img = torch.clamp(def_img, 0, 1)
 
         pgd_img = pgd.perturb(test_img, test_label)
@@ -100,9 +101,11 @@ def tester(dataset, dataloader, save_img=False):
         def_pgd_img = def_pgd_noise * eps + pgd_img
         def_pgd_img = torch.clamp(def_pgd_img, 0, 1)
 
+        pgd_nat_img = pgd.perturb(test_img, test_label, base=True)
+
         # calculate acc.
         pred_adv = torch.argmax(target_model(adv_img),1)
-        pred_pgd = torch.argmax(target_model(pgd_img), 1)
+        pred_pgd = torch.argmax(target_model(pgd_nat_img), 1)
         pred_def_adv = torch.argmax(target_model(def_adv_img),1)
         pred_def = torch.argmax(target_model(def_img),1)
         pred_def_pgd = torch.argmax(target_model(def_pgd_img), 1)
@@ -118,6 +121,7 @@ def tester(dataset, dataloader, save_img=False):
         if save_img and i < 1:
             test_img_full.append(test_img)
             adv_img_full.append(adv_img)
+            pgd_img_full.append(pgd_nat_img)
             def_img_full.append(def_img)
             def_adv_img_full.append(def_adv_img)
             def_pgd_img_full.append(def_pgd_img)
@@ -136,6 +140,12 @@ def tester(dataset, dataloader, save_img=False):
     print('accuracy of def(pgd) imgs: %f'%(num_correct_def_pgd.item()/len(dataset)))
     print('accuracy of nat imgs: %f'%(num_correct.item()/len(dataset)))
 
+    l_inf = np.amax(np.abs(adv_img.cpu().detach().numpy()-test_img.cpu().detach().numpy()))
+    print('l-inf of adv imgs:%f'%(l_inf))
+    l_inf = np.amax(np.abs(def_img.cpu().detach().numpy()-test_img.cpu().detach().numpy()))
+    print('l-inf of def imgs:%f'%(l_inf))
+    l_inf = np.amax(np.abs(def_adv_img.cpu().detach().numpy()-test_img.cpu().detach().numpy()))
+    print('l-inf of def(adv) imgs:%f'%(l_inf))
     l_inf = np.amax(np.abs(def_pgd_img.cpu().detach().numpy()-test_img.cpu().detach().numpy()))
     print('l-inf of def(pgd) imgs:%f'%(l_inf))
     
@@ -145,21 +155,24 @@ def tester(dataset, dataloader, save_img=False):
     if save_img:
         test_img_full = torch.cat(test_img_full)
         adv_img_full = torch.cat(adv_img_full)
+        pgd_img_full = torch.cat(pgd_img_full)
         def_img_full = torch.cat(def_img_full)
         def_adv_img_full = torch.cat(def_adv_img_full)
         def_pgd_img_full = torch.cat(def_pgd_img_full)
         
         test_grid = make_grid(test_img_full)
         adv_grid = make_grid(adv_img_full)
+        pgd_grid = make_grid(pgd_img_full)
         def_grid = make_grid(def_img_full)
         def_adv_grid = make_grid(def_adv_img_full)
         def_pgd_grid = make_grid(def_pgd_img_full)
 
-        save_image(test_grid, './out/test_grid.png')
-        save_image(adv_grid, './out/adv_grid.png')
-        save_image(def_grid, './out/def_grid.png')
-        save_image(def_adv_grid, './out/def_adv_grid.png')
-        save_image(def_pgd_grid, './out/def_pgd_grid.png')
+        save_image(test_grid, './out/'+model_name+'test_grid.png')
+        save_image(adv_grid, './out/'+model_name+'adv_grid.png')
+        save_image(pgd_grid, './out/'+model_name+'pgd_grid.png')
+        save_image(def_grid, './out/'+model_name+'def_grid.png')
+        save_image(def_adv_grid, './out/'+model_name+'def_adv_grid.png')
+        save_image(def_pgd_grid, './out/'+model_name+'def_pgd_grid.png')
 
         print('images saved')
     
