@@ -19,6 +19,7 @@ args = parser.parse_args()
 
 use_cuda=True
 image_nc=1
+vec_nc=10
 batch_size = 128
 eps = 0.3
 
@@ -45,12 +46,12 @@ enc.load_state_dict(torch.load(enc_path))
 enc.eval()
 
 advG_path = './models/' + model_name + 'advG_epoch_{}.pth'.format(epoch)
-advG = models.Generator(image_nc).to(device)
+advG = models.Generator(image_nc, vec_nc).to(device)
 advG.load_state_dict(torch.load(advG_path))
 advG.eval()
 
 defG_path = './models/' + model_name + 'defG_epoch_{}.pth'.format(epoch)
-defG = models.Generator(image_nc, adv=False).to(device)
+defG = models.Generator(image_nc, vec_nc, adv=False).to(device)
 defG.load_state_dict(torch.load(defG_path))
 defG.eval()
 
@@ -86,17 +87,17 @@ def tester(dataset, dataloader, save_img=False):
         adv_img = torch.clamp(adv_img, 0, 1)
         
         def_adv_noise = defG(enc(adv_img))
-        def_adv_img = def_adv_noise + adv_img
+        def_adv_img = def_adv_noise * eps + adv_img
         def_adv_img = torch.clamp(def_adv_img, 0, 1)
 
         def_noise = defG(enc(test_img))
-        def_img = def_noise + test_img
+        def_img = def_noise * eps + test_img
         def_img = torch.clamp(def_img, 0, 1)
 
         pgd_img = pgd.perturb(test_img, test_label)
         
         def_pgd_noise = defG(enc(pgd_img))
-        def_pgd_img = def_pgd_noise + pgd_img
+        def_pgd_img = def_pgd_noise * eps + pgd_img
         def_pgd_img = torch.clamp(def_pgd_img, 0, 1)
 
         # calculate acc.

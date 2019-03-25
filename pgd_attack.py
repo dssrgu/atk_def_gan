@@ -23,7 +23,7 @@ class PGD(object):
             X_var.requires_grad = True
 
             if self.enc and self.defG:
-                scores = self.model(self.defG(self.enc(X_var)) + X_var)
+                scores = self.model(self.defG(self.enc(X_var)) * self.eps + X_var)
             else:
                 scores = self.model(X_var)
 

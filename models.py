@@ -125,8 +125,7 @@ class Generator(nn.Module):
 
         x = self.decoder(x)
 
-        if self.adv:
-            x = self.tanh(x)
+        x = self.tanh(x)
 
         return x
 

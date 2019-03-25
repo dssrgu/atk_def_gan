@@ -44,7 +44,7 @@ class AdvGAN_Attack:
 
         self.en_input_nc = image_nc
         self.enc = models.Encoder(self.en_input_nc).to(device)
-        self.advG = models.Generator(image_nc).to(device)
+        self.advG = models.Generator(image_nc, vec_nc).to(device)
         self.defG = models.Generator(image_nc, vec_nc, adv=False).to(device)
 
         # initialize all weights
@@ -75,11 +75,11 @@ class AdvGAN_Attack:
         adv_images = torch.clamp(adv_images, self.box_min, self.box_max)
 
         # make def(adv) image
-        def_adv_images = self.defG(self.enc(adv_images)) + adv_images
+        def_adv_images = self.defG(self.enc(adv_images)) * self.eps + adv_images
         def_adv_images = torch.clamp(def_adv_images, self.box_min, self.box_max)
 
         # make def(nat) image
-        def_images = self.defG(self.enc(x)) + x
+        def_images = self.defG(self.enc(x)) * self.eps + x
         def_images = torch.clamp(def_images, self.box_min, self.box_max)
 
         return target_labels, adv_images, def_adv_images, def_images
