@@ -8,6 +8,8 @@ from models import MNIST_target_net
 from pgd_attack import PGD
 import argparse
 
+import numpy as np
+
 parser = argparse.ArgumentParser()
 
 parser.add_argument('--epoch', default=60, type=int)
@@ -132,6 +134,9 @@ def tester(dataset, dataloader, save_img=False):
     print('accuracy of def(nat) imgs: %f'%(num_correct_def.item()/len(dataset)))
     print('accuracy of def(pgd) imgs: %f'%(num_correct_def_pgd.item()/len(dataset)))
     print('accuracy of nat imgs: %f'%(num_correct.item()/len(dataset)))
+
+    l_inf = np.amax(np.abs(def_pgd_img.cpu().detach().numpy()-test_img.cpu().detach().numpy()))
+    print('l-inf of def(pgd) imgs:%f'%(l_inf))
     
     print()
 

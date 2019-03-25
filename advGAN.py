@@ -112,7 +112,7 @@ class AdvGAN_Attack:
             self.optimizer_enc.step()
 
         # optimize advG
-        for i in range(5):
+        for i in range(1):
 
             # clear grad
             self.optimizer_advG.zero_grad()
@@ -128,7 +128,8 @@ class AdvGAN_Attack:
             loss_def_adv = F.cross_entropy(logits_def_adv, target_labels)
 
             # backprop
-            loss_advG = loss_adv + loss_def_adv
+            #loss_advG = loss_adv + loss_def_adv
+            loss_advG = loss_adv
 
             loss_advG.backward()
             self.optimizer_advG.step()
