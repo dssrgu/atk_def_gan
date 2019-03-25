@@ -167,7 +167,7 @@ class Encoder(nn.Module):
 # Mutual Information Neural Estimator
 class Mine(nn.Module):
     def __init__(self, image_nc, vec_nc):
-        super(Discriminator, self).__init__()
+        super(Mine, self).__init__()
         # MNIST: 1*28*28
         image_encoder = [
             nn.Conv2d(image_nc, 8, kernel_size=4, stride=2, padding=0, bias=True),
@@ -180,8 +180,6 @@ class Mine(nn.Module):
             nn.Conv2d(16, 32, kernel_size=4, stride=2, padding=0, bias=True),
             nn.BatchNorm2d(32),
             nn.LeakyReLU(0.2),
-            nn.Conv2d(32, 1, 1),
-            nn.Sigmoid()
             # 32*1*1
         ]
 
@@ -191,11 +189,12 @@ class Mine(nn.Module):
             nn.Linear(1024, 1)
         ]
         self.image_encoder = nn.Sequential(*image_encoder)
-        self.estimator = nn.Sequantial(*estimator)
+        self.estimator = nn.Sequential(*estimator)
 
     def forward(self, x, v):
         x = self.image_encoder(x)
-        x_v = torch.cat(x, v)
+        x_flat = x.squeeze()
+        x_v = torch.cat((x_flat, v), dim=1)
         output = self.estimator(x_v)
         return output
 

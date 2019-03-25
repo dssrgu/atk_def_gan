@@ -17,6 +17,7 @@ args = parser.parse_args()
 
 use_cuda=True
 image_nc=1
+vec_nc=10
 batch_size = 128
 eps = 0.3
 
@@ -74,12 +75,11 @@ def tester(dataset, dataloader, save_img=False):
         test_img, test_label = data
         test_img, test_label = test_img.to(device), test_label.to(device)
 
-        target_labels = torch.randint_like(test_label, 0, 10)
-        target_one_hot = torch.eye(10, device=device)[target_labels]
-        target_one_hot = target_one_hot.view(-1, 10, 1, 1)
+        z = torch.randn(test_label.shape[0], vec_nc).to(device)
+        z_res = z.view(-1, vec_nc, 1, 1)
         
         # prep images
-        adv_noise = advG(enc(test_img), target_one_hot)
+        adv_noise = advG(enc(test_img), z_res)
         adv_img = adv_noise * eps + test_img
         adv_img = torch.clamp(adv_img, 0, 1)
         
