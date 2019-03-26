@@ -117,7 +117,7 @@ class Generator(nn.Module):
             x = torch.cat((x, v), dim=1)
         '''
         
-        if self.adv:
+        if self.adv and False:
             v = self.vec_encoder_lis(v)
             x = self.bottle_neck(x+v)
         else:

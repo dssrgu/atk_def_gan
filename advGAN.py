@@ -45,7 +45,7 @@ class AdvGAN_Attack:
 
         self.en_input_nc = image_nc
         self.E = models.Encoder(self.en_input_nc).to(device)
-        self.advG = models.Generator(image_nc, vec_nc, adv=False).to(device)
+        self.advG = models.Generator(image_nc, vec_nc).to(device)
         self.defG = models.Generator(image_nc, vec_nc, adv=False).to(device)
         self.D = models.Discriminator(image_nc).to(device)
 
@@ -126,7 +126,7 @@ class AdvGAN_Attack:
 
             # adv loss
             logits_adv = self.model(adv_images)
-            loss_adv = F.cross_entropy(logits_adv, labels)
+            loss_adv = -F.cross_entropy(logits_adv, labels)
 
             # def(adv) loss
             logits_def_adv = self.model(def_adv_images)
@@ -143,7 +143,7 @@ class AdvGAN_Attack:
 
 
             #loss_E = loss_adv + loss_def_adv + loss_def
-            loss_E = loss_D
+            loss_E = loss_adv + loss_def + loss_D
 
             loss_E.backward()
             self.optimizer_E.step()
@@ -168,7 +168,7 @@ class AdvGAN_Attack:
             loss_D = D_loss(self.D(def_adv_images), true_vec)
 
             # backprop
-            loss_advG = loss_adv + loss_def_adv
+            loss_advG = loss_adv
 
             loss_advG.backward()
             self.optimizer_advG.step()
