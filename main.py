@@ -17,7 +17,7 @@ eps = 0.3
 parser = argparse.ArgumentParser()
 
 parser.add_argument('--model_name', default='', type=str)
-parser.add_argument('--epoch', default=60, type=int)
+parser.add_argument('--epochs', default=60, type=int)
 
 args = parser.parse_args()
 
@@ -44,4 +44,4 @@ advGAN = AdvGAN_Attack(device,
                           eps,
                           args.model_name)
 
-advGAN.train(dataloader, args.epoch)
+advGAN.train(dataloader, args.epochs)
