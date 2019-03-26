@@ -106,11 +106,10 @@ class AdvGAN_Attack:
 
 
             loss_D = D_loss(self.D(x), true_vec)
-            loss_D += D_loss(self.D(adv_images), false_vec)
             loss_D += D_loss(self.D(def_adv_images), false_vec)
             loss_D += D_loss(self.D(def_images), false_vec)
 
-            loss_D /= 4
+            loss_D /= 3
 
             loss_D.backward()
             self.optimizer_D.step()
@@ -136,10 +135,9 @@ class AdvGAN_Attack:
             loss_def = F.cross_entropy(logits_def, labels)
 
             # D loss
-            loss_D = D_loss(self.D(adv_images), true_vec)
-            loss_D += D_loss(self.D(def_adv_images), true_vec)
+            loss_D = D_loss(self.D(def_adv_images), true_vec)
             loss_D += D_loss(self.D(def_images), true_vec)
-            loss_D /= 3
+            loss_D /= 2
 
 
             #loss_E = loss_adv + loss_def_adv + loss_def
@@ -168,8 +166,7 @@ class AdvGAN_Attack:
             loss_D = D_loss(self.D(def_adv_images), true_vec)
 
             # backprop
-            #loss_advG = loss_adv + loss_def_adv
-            loss_advG = loss_def_adv + loss_D
+            loss_advG = loss_adv
 
             loss_advG.backward()
             self.optimizer_advG.step()
@@ -191,7 +188,7 @@ class AdvGAN_Attack:
             loss_def = F.cross_entropy(logits_def, labels)
 
             # D loss
-            loss_D += D_loss(self.D(def_adv_images), true_vec)
+            loss_D = D_loss(self.D(def_adv_images), true_vec)
             loss_D += D_loss(self.D(def_images), true_vec)
             loss_D /= 2
 

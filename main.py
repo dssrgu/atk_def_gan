@@ -9,7 +9,6 @@ import argparse
 use_cuda=True
 image_nc=1
 vec_nc=10
-epochs = 60
 batch_size = 128
 BOX_MIN = 0
 BOX_MAX = 1
@@ -18,6 +17,7 @@ eps = 0.3
 parser = argparse.ArgumentParser()
 
 parser.add_argument('--model_name', default='', type=str)
+parser.add_argument('--epochs', default=60, type=int)
 
 args = parser.parse_args()
 
@@ -44,4 +44,4 @@ advGAN = AdvGAN_Attack(device,
                           eps,
                           args.model_name)
 
-advGAN.train(dataloader, epochs)
+advGAN.train(dataloader, args.epochs)
