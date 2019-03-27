@@ -103,7 +103,14 @@ class AdvGAN_Attack:
 
     # performance tester
     def test(self):
-        return test_full(self.device, self.model, self.E, self.defG, self.advG, self.mine, self.vec_nc, self.eps, label_count=True, save_img=False)
+        
+        self.E.eval()
+        self.defG.eval()
+        
+        test_full(self.device, self.model, self.E, self.defG, self.advG, self.mine, self.vec_nc, self.eps, label_count=True, save_img=False)
+        
+        self.E.train()
+        self.defG.train()
 
 
     # train helper
@@ -117,6 +124,7 @@ class AdvGAN_Attack:
 
             # sample z from uniform dist.
             z = torch.rand(labels.shape[0], self.vec_nc).to(self.device) * 2 - 1
+            z_bar = torch.rand(labels.shape[0], self.vec_nc).to(self.device) * 2 - 1
 
             _, adv_images, def_adv_images, def_images = self.gen_images(x, z)
 
@@ -136,6 +144,35 @@ class AdvGAN_Attack:
             loss_E = loss_adv + loss_def
 
             loss_E.backward()
+            
+            # gradient checker
+            E_norm = 0
+            for p in self.E.parameters():
+                param_norm = p.grad.data.norm(2)
+                E_norm += param_norm.item() ** 2
+            E_norm = E_norm ** (1. / 2)
+
+            self.optimizer_E.step()
+
+            # MI loss
+            mi_loss = -self.mi_est(adv_images, z, z_bar)
+
+            mi_loss.backward()
+
+            # gradient checker
+            mi_norm = 0
+            for p in self.E.parameters():
+                param_norm = p.grad.data.norm(2)
+                mi_norm += param_norm.item() ** 2
+            mi_norm = mi_norm ** (1. / 2)
+
+            # mi gradient regularizer
+            min_norm = min(E_norm, mi_norm)
+
+            grad_reg = min_norm / mi_norm
+
+            for p in self.E.parameters():
+                p.grad.data.mul_(grad_reg)
 
             self.optimizer_E.step()
 

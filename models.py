@@ -171,23 +171,24 @@ class Mine(nn.Module):
         super(Mine, self).__init__()
         # MNIST: 1*28*28
         image_encoder = [
-            nn.Conv2d(image_nc, 8, kernel_size=4, stride=2, padding=0, bias=True),
+            nn.Conv2d(image_nc, 2, kernel_size=4, stride=2, padding=0, bias=True),
+            nn.InstanceNorm2d(2),
             nn.LeakyReLU(0.2),
             # 8*13*13
-            nn.Conv2d(8, 16, kernel_size=4, stride=2, padding=0, bias=True),
-            nn.BatchNorm2d(16),
+            nn.Conv2d(2, 4, kernel_size=4, stride=2, padding=0, bias=True),
+            nn.InstanceNorm2d(4),
             nn.LeakyReLU(0.2),
             # 16*5*5
-            nn.Conv2d(16, 32, kernel_size=4, stride=2, padding=0, bias=True),
-            nn.BatchNorm2d(32),
+            nn.Conv2d(4, 8, kernel_size=4, stride=2, padding=0, bias=True),
+            nn.InstanceNorm2d(32),
             nn.LeakyReLU(0.2),
             # 32*1*1
         ]
 
         estimator = [
-            nn.Linear(vec_nc + 32, 1024),
-            nn.ReLU(),
-            nn.Linear(1024, 1),
+            nn.Linear(vec_nc + 32, 128),
+            nn.LeakyReLU(0.2),
+            nn.Linear(128, 1),
         ]
         self.image_encoder = nn.Sequential(*image_encoder)
         self.estimator = nn.Sequential(*estimator)
