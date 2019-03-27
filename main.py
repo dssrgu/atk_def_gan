@@ -21,6 +21,7 @@ parser.add_argument('--model_name', default='', type=str)
 parser.add_argument('--vec_nc', default=10, type=int)
 parser.add_argument('--mine_scale', default=0.01, type=float)
 parser.add_argument('--log_base_dir', default='mnist/data', type=str)
+parser.add_argument('--no_logging', action='store_true')
 parser.add_argument('--epochs', default=60, type=int)
 
 args = parser.parse_args()
@@ -28,8 +29,11 @@ for arg in vars(args):
     print (arg, getattr(args, arg))
     
 # tensorboard writer
-log_base_dir = args.log_base_dir + '/'+'vec{}'.format(args.vec_nc) + '_' + 'mine{}'.format(args.mine_scale)
-writer = SummaryWriter(log_base_dir)
+if args.no_logging:
+    writer = None
+else:
+    log_base_dir = args.log_base_dir + '/'+'vec{}'.format(args.vec_nc) + '_' + 'mine{}'.format(args.mine_scale)
+    writer = SummaryWriter(log_base_dir)
 
 # Define what device we are using print("CUDA Available: ",torch.cuda.is_available())
 device = torch.device("cuda" if (use_cuda and torch.cuda.is_available()) else "cpu")

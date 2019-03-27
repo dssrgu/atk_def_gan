@@ -19,7 +19,7 @@ def parameters_count(model):
 
 def tester(dataset, dataloader, device, target_model, E, defG, advG, mine, vec_nc, eps, label_count=True, save_img=False):
     
-    # load PGD attack
+    # load PGD
     pgd = PGD(target_model, E, defG, device)
 
     num_correct_adv = 0
