@@ -37,6 +37,9 @@ targeted_model.load_state_dict(torch.load(pretrained_model))
 targeted_model.eval()
 model_num_labels = 10
 
+# tensorboard writer
+writer = SummaryWriter()
+
 # MNIST train dataset and dataloader declaration
 mnist_dataset = torchvision.datasets.MNIST('./dataset', train=True, transform=transforms.ToTensor(), download=True)
 dataloader = DataLoader(mnist_dataset, batch_size=batch_size, shuffle=True, num_workers=1)
@@ -48,6 +51,9 @@ advGAN = AdvGAN_Attack(device,
                           BOX_MIN,
                           BOX_MAX,
                           args.eps,
-                          args.model_name)
+                          args.model_name,
+                          args.log_base_dir,
+                          writer,
+                       )
 
 advGAN.train(dataloader, args.epochs)

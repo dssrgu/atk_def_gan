@@ -30,6 +30,8 @@ class AdvGAN_Attack:
                  box_max,
                  eps,
                  model_name,
+                 log_base_dir,
+                 writer,
                  init_lr=0.001):
         output_nc = image_nc
         self.device = device
@@ -42,6 +44,8 @@ class AdvGAN_Attack:
         self.box_max = box_max
         self.eps = eps
         self.model_name = (model_name + '_') if model_name else model_name
+        self.log_base_dir = log_base_dir
+        self.writer = writer
         self.init_lr = init_lr
 
         self.en_input_nc = image_nc
@@ -289,6 +293,14 @@ class AdvGAN_Attack:
                   (epoch, loss_E_sum/num_batch, loss_advG_sum/num_batch,
                    loss_defG_sum/num_batch, loss_mine_sum/num_batch))
 
+            # write to tensorboard
+            self.writer.add_scalar(self.log_base_dir+'/grad_reg_vec{}'.format(self.vec_nc), reg_sum/num_batch, epoch)
+            self.writer.add_scalar(self.log_base_dir+'/mi_norm_vec{}'.format(self.vec_nc), mi_sum/num_batch, epoch)
+            self.writer.add_scalar(self.log_base_dir+'/loss_E_vec{}'.format(self.vec_nc), loss_E_sum/num_batch, epoch)
+            self.writer.add_scalar(self.log_base_dir+'/loss_advG_vec{}'.format(self.vec_nc), loss_advG_sum/num_batch, epoch)
+            self.writer.add_scalar(self.log_base_dir+'/loss_defG_vec{}'.format(self.vec_nc), loss_defG_sum/num_batch, epoch)
+            self.writer.add_scalar(self.log_base_dir+'/loss_mine_vec{}'.format(self.vec_nc), loss_mine_sum/num_batch, epoch)
+
             # save generator
             if epoch%20==0:
                 E_file_name = models_path + self.model_name + 'E_epoch_' + str(epoch) + '.pth'
@@ -299,4 +311,6 @@ class AdvGAN_Attack:
                 torch.save(self.advG.state_dict(), advG_file_name)
                 torch.save(self.defG.state_dict(), defG_file_name)
                 torch.save(self.mine.state_dict(), mine_file_name)
+
+        self.writer.close()
 
