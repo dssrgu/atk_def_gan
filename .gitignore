@@ -130,3 +130,8 @@ models/
 *.swp
 .idea/
 out/
+BUILD
+WORKSPACE
+bazel*
+*.test_exp
+*__.py

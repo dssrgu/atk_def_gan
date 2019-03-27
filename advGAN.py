@@ -72,10 +72,10 @@ class AdvGAN_Attack:
     # generate images for training
     def gen_images(self, x, z):
 
-
         z_res = z.view(-1, self.vec_nc, 1, 1)
         # make adv image
-        adv_images = self.advG(self.E(x), z_res) * self.eps + x
+        adv_noise = self.advG(self.E(x), z_res)
+        adv_images = adv_noise * self.eps + x
         adv_images = torch.clamp(adv_images, self.box_min, self.box_max)
 
         # make def(adv) image
@@ -86,7 +86,13 @@ class AdvGAN_Attack:
         def_images = self.defG(self.E(x)) + x
         def_images = torch.clamp(def_images, self.box_min, self.box_max)
 
-        return adv_images, def_adv_images, def_images
+        return adv_noise, adv_images, def_adv_images, def_images
+
+    def mi_est(self, adv_noise, z, z_bar):
+
+        l_bound = torch.mean(self.mine(adv_noise, z)) - torch.log(torch.mean(torch.exp(self.mine(adv_noise, z_bar))))
+
+        return l_bound
 
     def train_batch(self, x, labels):
 
@@ -97,13 +103,13 @@ class AdvGAN_Attack:
             self.optimizer_E.zero_grad()
 
             # sample z from uniform dist.
-            z = torch.randn(labels.shape[0], self.vec_nc).to(self.device)
+            z = torch.rand(labels.shape[0], self.vec_nc).to(self.device) * 2 - 1
 
-            adv_images, def_adv_images, def_images = self.gen_images(x, z)
+            _, adv_images, def_adv_images, def_images = self.gen_images(x, z)
 
             # adv loss
             logits_adv = self.model(adv_images)
-            loss_adv = F.cross_entropy(logits_adv, labels)
+            loss_adv = -F.cross_entropy(logits_adv, labels)
 
             # def(adv) loss
             logits_def_adv = self.model(def_adv_images)
@@ -113,9 +119,11 @@ class AdvGAN_Attack:
             logits_def = self.model(def_images)
             loss_def = F.cross_entropy(logits_def, labels)
 
-            loss_E = - loss_def_adv + loss_def
+            # ???
+            loss_E = loss_adv + loss_def
 
             loss_E.backward()
+
             self.optimizer_E.step()
 
         # optimize advG
@@ -125,9 +133,10 @@ class AdvGAN_Attack:
             self.optimizer_advG.zero_grad()
 
             # sample z from uniform dist.
-            z = torch.randn(labels.shape[0], self.vec_nc).to(self.device)
+            z = torch.rand(labels.shape[0], self.vec_nc).to(self.device) * 2 - 1
+            z_bar = torch.rand(labels.shape[0], self.vec_nc).to(self.device) * 2 - 1
 
-            adv_images, def_adv_images, _ = self.gen_images(x, z)
+            adv_noise, adv_images, def_adv_images, _ = self.gen_images(x, z)
 
             # adv loss
             logits_adv = self.model(adv_images)
@@ -137,14 +146,43 @@ class AdvGAN_Attack:
             logits_def_adv = self.model(def_adv_images)
             loss_def_adv = -F.cross_entropy(logits_def_adv, labels)
 
-            # MI loss
-            mi_loss = torch.mean(self.mine(adv_images, z))
-
             # backprop
-            # loss_advG = loss_adv + loss_def_adv
-            loss_advG = loss_def_adv + mi_loss
+            loss_advG = loss_adv + loss_def_adv
 
-            loss_advG.backward()
+            loss_advG.backward(retain_graph=True)
+            
+            # gradient checker
+            adv_norm = 0
+            for p in self.advG.parameters():
+                param_norm = p.grad.data.norm(2)
+                adv_norm += param_norm.item() ** 2
+            adv_norm = adv_norm ** (1. / 2)
+
+            self.optimizer_advG.step()
+
+            #clear grad
+            self.optimizer_advG.zero_grad()
+
+            # MI loss
+            mi_loss = -self.mi_est(adv_noise, z, z_bar)
+
+            mi_loss.backward()
+
+            # gradient checker
+            mi_norm = 0
+            for p in self.advG.parameters():
+                param_norm = p.grad.data.norm(2)
+                mi_norm += param_norm.item() ** 2
+            mi_norm = mi_norm ** (1. / 2)
+
+            # mi gradient regularizer
+            min_norm = min(adv_norm, mi_norm)
+
+            grad_reg = min_norm / mi_norm
+
+            for p in self.advG.parameters():
+                p.grad.data.mul_(grad_reg)
+
             self.optimizer_advG.step()
 
         # optimize defG
@@ -154,9 +192,9 @@ class AdvGAN_Attack:
             self.optimizer_defG.zero_grad()
 
             # sample z from uniform dist.
-            z = torch.randn(labels.shape[0], self.vec_nc).to(self.device)
+            z = torch.rand(labels.shape[0], self.vec_nc).to(self.device) * 2 - 1
 
-            _, def_adv_images, def_images = self.gen_images(x, z)
+            _, _, def_adv_images, def_images = self.gen_images(x, z)
 
             # def(adv) loss
             logits_def_adv = self.model(def_adv_images)
@@ -178,19 +216,26 @@ class AdvGAN_Attack:
             self.optimizer_mine.zero_grad()
 
             # sample z from uniform dist.
-            z = torch.randn(labels.shape[0], self.vec_nc).to(self.device)
-            z_bar = torch.randn(labels.shape[0], self.vec_nc).to(self.device)
+            z = torch.rand(labels.shape[0], self.vec_nc).to(self.device) * 2 - 1
+            z_bar = torch.rand(labels.shape[0], self.vec_nc).to(self.device) * 2 - 1
 
-            adv_images, _, _ = self.gen_images(x, z)
+            adv_noise, adv_images, _, _ = self.gen_images(x, z)
 
-            l_bound = torch.mean(self.mine(adv_images, z)) - torch.log(torch.mean(torch.exp(self.mine(adv_images, z_bar))))
-
-            loss_mine = - l_bound
+            # MI loss
+            loss_mine = -self.mi_est(adv_noise, z, z_bar)
 
             loss_mine.backward()
+        
+            # gradient checker
+            mi_norm = 0
+            for p in self.mine.parameters():
+                param_norm = p.grad.data.norm(2)
+                mi_norm += param_norm.item() ** 2
+            mi_norm = mi_norm ** (1. / 2)
+            
             self.optimizer_mine.step()
 
-        return torch.sum(loss_E).item(), torch.sum(loss_advG).item(),\
+        return grad_reg, mi_norm, torch.sum(loss_E).item(), torch.sum(loss_advG).item(),\
                torch.sum(loss_defG).item(), loss_mine.item()
 
     def train(self, train_dataloader, epochs):
@@ -219,20 +264,27 @@ class AdvGAN_Attack:
             loss_advG_sum = 0
             loss_defG_sum = 0
             loss_mine_sum = 0
+            reg_sum = 0
+            mi_sum = 0
 
             for i, data in enumerate(train_dataloader, start=0):
                 images, labels = data
                 images, labels = images.to(self.device), labels.to(self.device)
 
-                loss_E_batch, loss_advG_batch, loss_defG_batch, loss_mine_batch = \
+                reg_batch, mi_batch, loss_E_batch, loss_advG_batch, loss_defG_batch, loss_mine_batch = \
                     self.train_batch(images, labels)
                 loss_E_sum += loss_E_batch
                 loss_advG_sum += loss_advG_batch
                 loss_defG_sum += loss_defG_batch
                 loss_mine_sum += loss_mine_batch
+                reg_sum += reg_batch
+                mi_sum += mi_batch
+
 
             # print statistics
             num_batch = len(train_dataloader)
+            print('grad_reg: %.5f' % (reg_sum/num_batch))
+            print('mi_norm: %.5f' % (mi_sum/num_batch))
             print("epoch %d:\nloss_E: %.5f, loss_advG: %.5f, loss_defG: %.5f, loss_mine: %.5f\n" %
                   (epoch, loss_E_sum/num_batch, loss_advG_sum/num_batch,
                    loss_defG_sum/num_batch, loss_mine_sum/num_batch))

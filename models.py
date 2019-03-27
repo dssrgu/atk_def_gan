@@ -187,7 +187,7 @@ class Mine(nn.Module):
         estimator = [
             nn.Linear(vec_nc + 32, 1024),
             nn.ReLU(),
-            nn.Linear(1024, 1)
+            nn.Linear(1024, 1),
         ]
         self.image_encoder = nn.Sequential(*image_encoder)
         self.estimator = nn.Sequential(*estimator)

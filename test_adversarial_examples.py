@@ -12,7 +12,7 @@ import numpy as np
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('--epoch', default=60, type=int)
+parser.add_argument('--epoch', default=100, type=int)
 parser.add_argument('--model_name', default='', type=str)
 parser.add_argument('--count_parameters', action='store_true')
 parser.add_argument('--print_adv_labels', action='store_true')
@@ -68,8 +68,15 @@ defG = models.Generator(image_nc, vec_nc, adv=False).to(device)
 defG.load_state_dict(torch.load(defG_path))
 if args.count_parameters:
     print('number of parameters(defG):', count_parameters(defG))
-    print()
 defG.eval()
+
+mine_path = './models/' + model_name + 'mine_epoch_{}.pth'.format(epoch)
+mine = models.Mine(image_nc, vec_nc).to(device)
+mine.load_state_dict(torch.load(mine_path))
+if args.count_parameters:
+    print('number of parameters(mine):', count_parameters(mine))
+    print()
+mine.eval()
 
 # load PGD attack
 pgd = PGD(target_model, E, defG, device)
@@ -91,6 +98,8 @@ def tester(dataset, dataloader, save_img=False):
     def_pgd_img_full = []
 
     pred_adv_full = []
+    pred_pgd_full = []
+    pred_def_pgd_full = []
 
     for i, data in enumerate(dataloader, 0):
         # load images
@@ -102,9 +111,12 @@ def tester(dataset, dataloader, save_img=False):
         target_one_hot = torch.eye(10, device=device)[target_labels]
         target_one_hot = target_one_hot.view(-1, 10, 1, 1)
         '''
-
+        
+        z = torch.rand(test_label.shape[0], vec_nc).to(device) * 2 - 1
+        z_res = z.view(-1, vec_nc, 1, 1)
+        
         # prep images
-        adv_noise = advG(E(test_img))
+        adv_noise = advG(E(test_img), z_res)
         adv_img = adv_noise * eps + test_img
         adv_img = torch.clamp(adv_img, 0, 1)
 
@@ -141,6 +153,8 @@ def tester(dataset, dataloader, save_img=False):
 
         if args.print_adv_labels:
             pred_adv_full.append(pred_adv)
+            pred_pgd_full.append(pred_pgd)
+            pred_def_pgd_full.append(pred_def_pgd)
 
         if save_img and i < 1:
             test_img_full.append(test_img)
@@ -182,6 +196,17 @@ def tester(dataset, dataloader, save_img=False):
         preds = pred_adv_full.cpu().detach().numpy()
         print('label counts in adv imgs:')
         print(np.unique(preds, return_counts=True))
+        
+        pred_pgd_full = torch.cat(pred_pgd_full)
+        preds = pred_pgd_full.cpu().detach().numpy()
+        print('label counts in pgd imgs:')
+        print(np.unique(preds, return_counts=True))
+        
+        pred_def_pgd_full = torch.cat(pred_def_pgd_full)
+        preds = pred_def_pgd_full.cpu().detach().numpy()
+        print('label counts in def_pgd imgs:')
+        print(np.unique(preds, return_counts=True))
+        
         print()
 
     if save_img:
