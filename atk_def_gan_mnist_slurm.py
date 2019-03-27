@@ -17,8 +17,8 @@ LABEL = 'test_exp'
 QOS_TYPE = 'normal'  # 'normal' or 'highprio'
 
 PARAM_DICT = {
-    '--vec_nc' : [50, 100, 150, 200],
-    '--mine_scale' : [1, 0.1, 0.01, 0.001],
+    '--vec_nc' : [10, 50, 100, 150],
+    '--mine_scale' : [10, 1, 0.1, 0.01],
 }
 
 # If you don't use python, you can just assign the base command string to

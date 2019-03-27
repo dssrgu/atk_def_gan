@@ -95,9 +95,9 @@ class AdvGAN_Attack:
         return adv_noise, adv_images, def_adv_images, def_images
 
     # mi estimation
-    def mi_est(self, adv_noise, z, z_bar):
+    def mi_est(self, x, z, z_bar):
 
-        l_bound = torch.mean(self.mine(adv_noise, z)) - torch.log(torch.mean(torch.exp(self.mine(adv_noise, z_bar))))
+        l_bound = torch.mean(self.mine(x, z)) - torch.log(torch.mean(torch.exp(self.mine(x, z_bar))))
 
         return l_bound * self.mine_scale
 
@@ -177,7 +177,7 @@ class AdvGAN_Attack:
             self.optimizer_advG.zero_grad()
 
             # MI loss
-            mi_loss = -self.mi_est(adv_noise, z, z_bar)
+            mi_loss = -self.mi_est(adv_images, z, z_bar)
 
             mi_loss.backward()
 
@@ -235,7 +235,7 @@ class AdvGAN_Attack:
             adv_noise, adv_images, _, _ = self.gen_images(x, z)
 
             # MI loss
-            loss_mine = -self.mi_est(adv_noise, z, z_bar)
+            loss_mine = -self.mi_est(adv_images, z, z_bar)
 
             loss_mine.backward()
         
@@ -249,6 +249,10 @@ class AdvGAN_Attack:
             self.optimizer_mine.step()
 
         # pgd performance check
+        
+        self.E.eval()
+        self.defG.eval()
+        
         pgd = PGD(self.model, self.E, self.defG, self.device)
         pgd_img = pgd.perturb(x, labels)
         def_pgd_noise = self.defG(self.E(pgd_img))
@@ -257,6 +261,9 @@ class AdvGAN_Attack:
         pred = torch.argmax(self.model(def_pgd_img), 1)
         num_correct = torch.sum(pred == labels, 0)
         pgd_acc = num_correct.item()/len(labels)
+
+        self.E.train()
+        self.defG.train()
 
         return pgd_acc, grad_reg, mi_norm, torch.sum(loss_E).item(), torch.sum(loss_advG).item(),\
                torch.sum(loss_defG).item(), loss_mine.item()

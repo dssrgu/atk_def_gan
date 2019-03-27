@@ -19,7 +19,7 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument('--model_name', default='', type=str)
 parser.add_argument('--vec_nc', default=10, type=int)
-parser.add_argument('--mine_scale', default=0.01, type=float)
+parser.add_argument('--mine_scale', default=0.1, type=float)
 parser.add_argument('--log_base_dir', default='mnist/data', type=str)
 parser.add_argument('--no_logging', action='store_true')
 parser.add_argument('--epochs', default=60, type=int)
