@@ -5,6 +5,7 @@ import models
 import torch.nn.functional as F
 #import torchvision
 import os
+from test_adversarial_examples import test_full
 
 models_path = './models/'
 
@@ -26,11 +27,11 @@ class AdvGAN_Attack:
                  model_num_labels,
                  image_nc,
                  vec_nc,
+                 mine_scale,
                  box_min,
                  box_max,
                  eps,
                  model_name,
-                 log_base_dir,
                  writer,
                  init_lr=0.001):
         output_nc = image_nc
@@ -39,12 +40,12 @@ class AdvGAN_Attack:
         self.model = model
         self.input_nc = image_nc
         self.vec_nc = vec_nc
+        self.mine_scale = mine_scale
         self.output_nc = output_nc
         self.box_min = box_min
         self.box_max = box_max
         self.eps = eps
         self.model_name = (model_name + '_') if model_name else model_name
-        self.log_base_dir = log_base_dir
         self.writer = writer
         self.init_lr = init_lr
 
@@ -92,12 +93,19 @@ class AdvGAN_Attack:
 
         return adv_noise, adv_images, def_adv_images, def_images
 
+    # mi estimation
     def mi_est(self, adv_noise, z, z_bar):
 
         l_bound = torch.mean(self.mine(adv_noise, z)) - torch.log(torch.mean(torch.exp(self.mine(adv_noise, z_bar))))
 
-        return l_bound
+        return l_bound * self.mine_scale
 
+    # performance tester
+    def test(self):
+        test_full(self.device, self.model, self.E, self.defG, self.advG, self.mine, self.vec_nc, self.eps, label_count=True, save_img=False)
+
+
+    # train helper
     def train_batch(self, x, labels):
 
         # optimize E
@@ -242,6 +250,7 @@ class AdvGAN_Attack:
         return grad_reg, mi_norm, torch.sum(loss_E).item(), torch.sum(loss_advG).item(),\
                torch.sum(loss_defG).item(), loss_mine.item()
 
+    # main training function
     def train(self, train_dataloader, epochs):
         for epoch in range(1, epochs+1):
 
@@ -294,12 +303,12 @@ class AdvGAN_Attack:
                    loss_defG_sum/num_batch, loss_mine_sum/num_batch))
 
             # write to tensorboard
-            self.writer.add_scalar(self.log_base_dir+'/grad_reg_vec{}'.format(self.vec_nc), reg_sum/num_batch, epoch)
-            self.writer.add_scalar(self.log_base_dir+'/mi_norm_vec{}'.format(self.vec_nc), mi_sum/num_batch, epoch)
-            self.writer.add_scalar(self.log_base_dir+'/loss_E_vec{}'.format(self.vec_nc), loss_E_sum/num_batch, epoch)
-            self.writer.add_scalar(self.log_base_dir+'/loss_advG_vec{}'.format(self.vec_nc), loss_advG_sum/num_batch, epoch)
-            self.writer.add_scalar(self.log_base_dir+'/loss_defG_vec{}'.format(self.vec_nc), loss_defG_sum/num_batch, epoch)
-            self.writer.add_scalar(self.log_base_dir+'/loss_mine_vec{}'.format(self.vec_nc), loss_mine_sum/num_batch, epoch)
+            self.writer.add_scalar('grad_reg', reg_sum/num_batch, epoch)
+            self.writer.add_scalar('mine_grad_norm', mi_sum/num_batch, epoch)
+            self.writer.add_scalar('loss_E', loss_E_sum/num_batch, epoch)
+            self.writer.add_scalar('loss_advG', loss_advG_sum/num_batch, epoch)
+            self.writer.add_scalar('loss_defG', loss_defG_sum/num_batch, epoch)
+            self.writer.add_scalar('loss_mine', loss_mine_sum/num_batch, epoch)
 
             # save generator
             if epoch%20==0:
@@ -313,4 +322,7 @@ class AdvGAN_Attack:
                 torch.save(self.mine.state_dict(), mine_file_name)
 
         self.writer.close()
+
+        #test performance
+        self.test()
 

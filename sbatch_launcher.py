@@ -42,7 +42,7 @@ def srun_gpuless_task(cmd,
                       mem=15000,
                       partition='mllab',
                       qos='normal',
-                      timeout='1:00:00'):
+                      timeout='48:00:00'):
     srun_cmd = r'''srun --partition={} --qos={} --time={} --ntasks=1 --cpus-per-task={} --mem={} {}'''.format(
             partition, qos, timeout, cpus, mem, cmd)
     print(srun_cmd)

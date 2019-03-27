@@ -10,79 +10,18 @@ import argparse
 
 import numpy as np
 
-parser = argparse.ArgumentParser()
-
-parser.add_argument('--epoch', default=100, type=int)
-parser.add_argument('--model_name', default='', type=str)
-parser.add_argument('--count_parameters', action='store_true')
-parser.add_argument('--print_adv_labels', action='store_true')
-
-args = parser.parse_args()
-
 use_cuda = True
 image_nc = 1
-vec_nc = 10
 batch_size = 128
-eps = 0.3
 
-en_input_nc = image_nc
-
-
-def count_parameters(model):
+def parameters_count(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
+def tester(dataset, dataloader, device, target_model, E, defG, advG, mine, vec_nc, eps, label_count=True, save_img=False):
+    
+    # load PGD attack
+    pgd = PGD(target_model, E, defG, device)
 
-# Define what device we are using
-print("CUDA Available: ", torch.cuda.is_available())
-device = torch.device("cuda" if (use_cuda and torch.cuda.is_available()) else "cpu")
-print()
-
-# load the pretrained model
-model_path = "./MNIST_target_model.pth"
-target_model = MNIST_target_net().to(device)
-target_model.load_state_dict(torch.load(model_path))
-if args.count_parameters:
-    print('number of parameters(model):', count_parameters(target_model))
-target_model.eval()
-
-epoch = args.epoch
-model_name = (args.model_name + '_') if args.model_name else args.model_name
-
-# load encoder & generators
-E_path = './models/' + model_name + 'E_epoch_{}.pth'.format(epoch)
-E = models.Encoder(en_input_nc).to(device)
-E.load_state_dict(torch.load(E_path))
-if args.count_parameters:
-    print('number of parameters(E):', count_parameters(E))
-E.eval()
-
-advG_path = './models/' + model_name + 'advG_epoch_{}.pth'.format(epoch)
-advG = models.Generator(image_nc, vec_nc).to(device)
-advG.load_state_dict(torch.load(advG_path))
-if args.count_parameters:
-    print('number of parameters(advG):', count_parameters(advG))
-advG.eval()
-
-defG_path = './models/' + model_name + 'defG_epoch_{}.pth'.format(epoch)
-defG = models.Generator(image_nc, vec_nc, adv=False).to(device)
-defG.load_state_dict(torch.load(defG_path))
-if args.count_parameters:
-    print('number of parameters(defG):', count_parameters(defG))
-defG.eval()
-
-mine_path = './models/' + model_name + 'mine_epoch_{}.pth'.format(epoch)
-mine = models.Mine(image_nc, vec_nc).to(device)
-mine.load_state_dict(torch.load(mine_path))
-if args.count_parameters:
-    print('number of parameters(mine):', count_parameters(mine))
-    print()
-mine.eval()
-
-# load PGD attack
-pgd = PGD(target_model, E, defG, device)
-
-
-def tester(dataset, dataloader, save_img=False):
     num_correct_adv = 0
     num_correct_pgd = 0
     num_correct_def_adv = 0
@@ -151,7 +90,7 @@ def tester(dataset, dataloader, save_img=False):
         num_correct_def_pgd += torch.sum(pred_def_pgd == test_label, 0)
         num_correct += torch.sum(pred == test_label, 0)
 
-        if args.print_adv_labels:
+        if label_count:
             pred_adv_full.append(pred_adv)
             pred_pgd_full.append(pred_pgd)
             pred_def_pgd_full.append(pred_def_pgd)
@@ -191,7 +130,7 @@ def tester(dataset, dataloader, save_img=False):
 
     print()
 
-    if args.print_adv_labels:
+    if label_count:
         pred_adv_full = torch.cat(pred_adv_full)
         preds = pred_adv_full.cpu().detach().numpy()
         print('label counts in adv imgs:')
@@ -233,18 +172,82 @@ def tester(dataset, dataloader, save_img=False):
 
         print('images saved')
 
+def test_full(device, target_model, E, defG, advG, mine, vec_nc, eps, label_count=True, save_img=True):
+    
+    # test adversarial examples in MNIST training dataset
+    mnist_dataset = torchvision.datasets.MNIST('./dataset', train=True, transform=transforms.ToTensor(), download=True)
+    train_dataloader = DataLoader(mnist_dataset, batch_size=batch_size, shuffle=False, num_workers=1)
 
-# test adversarial examples in MNIST training dataset
-mnist_dataset = torchvision.datasets.MNIST('./dataset', train=True, transform=transforms.ToTensor(), download=True)
-train_dataloader = DataLoader(mnist_dataset, batch_size=batch_size, shuffle=False, num_workers=1)
+    print('MNIST training dataset:')
+    tester(mnist_dataset, train_dataloader, device, target_model, E, defG, advG, mine, vec_nc, eps, label_count, False)
 
-print('MNIST training dataset:')
-tester(mnist_dataset, train_dataloader)
+    # test adversarial examples in MNIST testing dataset
+    mnist_dataset_test = torchvision.datasets.MNIST('./dataset', train=False, transform=transforms.ToTensor(),
+                                                    download=True)
+    test_dataloader = DataLoader(mnist_dataset_test, batch_size=batch_size, shuffle=False, num_workers=1)
 
-# test adversarial examples in MNIST testing dataset
-mnist_dataset_test = torchvision.datasets.MNIST('./dataset', train=False, transform=transforms.ToTensor(),
-                                                download=True)
-test_dataloader = DataLoader(mnist_dataset_test, batch_size=batch_size, shuffle=False, num_workers=1)
+    print('MNIST test dataset:')
+    tester(mnist_dataset_test, test_dataloader, device, target_model, E, defG, advG, mine, vec_nc, eps, label_count, save_img)
 
-print('MNIST test dataset:')
-tester(mnist_dataset_test, test_dataloader, save_img=True)
+
+if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('--epoch', default=100, type=int)
+    parser.add_argument('--model_name', default='', type=str)
+    parser.add_argument('--vec_nc', default=10, type=int)
+    parser.add_argument('--eps', default=0.3, type=float)
+    parser.add_argument('--parameters_count', action='store_true')
+    parser.add_argument('--label_count', action='store_true')
+
+    args = parser.parse_args()
+
+    en_input_nc = image_nc
+    # Define what device we are using
+    print("CUDA Available: ", torch.cuda.is_available())
+    device = torch.device("cuda" if (use_cuda and torch.cuda.is_available()) else "cpu")
+    print()
+
+    # load the pretrained model
+    model_path = "./MNIST_target_model.pth"
+    target_model = MNIST_target_net().to(device)
+    target_model.load_state_dict(torch.load(model_path))
+    if args.parameters_count:
+        print('number of parameters(model):', parameters_count(target_model))
+    target_model.eval()
+
+    epoch = args.epoch
+    model_name = (args.model_name + '_') if args.model_name else args.model_name
+
+    # load encoder & generators
+    E_path = './models/' + model_name + 'E_epoch_{}.pth'.format(epoch)
+    E = models.Encoder(en_input_nc).to(device)
+    E.load_state_dict(torch.load(E_path))
+    if args.parameters_count:
+        print('number of parameters(E):', parameters_count(E))
+    E.eval()
+
+    advG_path = './models/' + model_name + 'advG_epoch_{}.pth'.format(epoch)
+    advG = models.Generator(image_nc, args.vec_nc).to(device)
+    advG.load_state_dict(torch.load(advG_path))
+    if args.parameters_count:
+        print('number of parameters(advG):', parameters_count(advG))
+    advG.eval()
+
+    defG_path = './models/' + model_name + 'defG_epoch_{}.pth'.format(epoch)
+    defG = models.Generator(image_nc, args.vec_nc, adv=False).to(device)
+    defG.load_state_dict(torch.load(defG_path))
+    if args.parameters_count:
+        print('number of parameters(defG):', parameters_count(defG))
+    defG.eval()
+
+    mine_path = './models/' + model_name + 'mine_epoch_{}.pth'.format(epoch)
+    mine = models.Mine(image_nc, args.vec_nc).to(device)
+    mine.load_state_dict(torch.load(mine_path))
+    if args.parameters_count:
+        print('number of parameters(mine):', parameters_count(mine))
+        print()
+    mine.eval()
+    
+    test_full(device, target_model, E, defG, advG, mine, args.vec_nc, args.eps, label_count=True)
