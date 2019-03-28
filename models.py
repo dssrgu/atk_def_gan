@@ -30,6 +30,7 @@ class MNIST_target_net(nn.Module):
         x = self.logits(x)
         return x
 
+
 # not used
 class Discriminator(nn.Module):
     def __init__(self, image_nc):
@@ -60,24 +61,11 @@ class Discriminator(nn.Module):
 class Generator(nn.Module):
     def __init__(self,
                  image_nc,
-                 vec_nc=10,
                  adv=True,
                  ):
         super(Generator, self).__init__()
 
         self.adv = adv
-
-        vec_encoder_lis = [
-            # input dim: vec_nc x 1 x 1
-            nn.ConvTranspose2d(vec_nc, 16, 3, stride=1, bias=True),
-            nn.InstanceNorm2d(16),
-            nn.ReLU(),
-            # state dim: 16 x 3 x 3
-            nn.ConvTranspose2d(16, 32, 3, stride=1, bias=True),
-            nn.InstanceNorm2d(32),
-            nn.ReLU(),
-            # state dim: 32 x 5 x 5
-        ]
 
         bottle_neck_lis = [ResnetBlock(32),
                            ResnetBlock(32),
@@ -103,18 +91,13 @@ class Generator(nn.Module):
             nn.Tanh(),
         ]
 
-        self.vec_encoder_lis = nn.Sequential(*vec_encoder_lis)
         self.bottle_neck = nn.Sequential(*bottle_neck_lis)
         self.decoder = nn.Sequential(*decoder_lis)
         self.tanh = nn.Sequential(*tanh_lis)
 
-    def forward(self, x, v=None):
+    def forward(self, x):
 
         x = self.bottle_neck(x)
-
-        if self.adv:
-            v = self.vec_encoder_lis(v)
-            x = torch.cat((x, v), dim=1)
 
         '''
         if self.adv:
@@ -130,6 +113,7 @@ class Generator(nn.Module):
             x = self.tanh(x)
 
         return x
+
 
 class Encoder(nn.Module):
     def __init__(self,
@@ -165,40 +149,6 @@ class Encoder(nn.Module):
         x = self.bottle_neck(x)
         return x
 
-# Mutual Information Neural Estimator
-class Mine(nn.Module):
-    def __init__(self, image_nc, vec_nc):
-        super(Mine, self).__init__()
-        # MNIST: 1*28*28
-        image_encoder = [
-            nn.Conv2d(image_nc, 2, kernel_size=4, stride=2, padding=0, bias=True),
-            nn.InstanceNorm2d(2),
-            nn.LeakyReLU(0.2),
-            # 8*13*13
-            nn.Conv2d(2, 4, kernel_size=4, stride=2, padding=0, bias=True),
-            nn.InstanceNorm2d(4),
-            nn.LeakyReLU(0.2),
-            # 16*5*5
-            nn.Conv2d(4, 8, kernel_size=4, stride=2, padding=0, bias=True),
-            nn.InstanceNorm2d(32),
-            nn.LeakyReLU(0.2),
-            # 32*1*1
-        ]
-
-        estimator = [
-            nn.Linear(vec_nc + 32, 128),
-            nn.LeakyReLU(0.2),
-            nn.Linear(128, 1),
-        ]
-        self.image_encoder = nn.Sequential(*image_encoder)
-        self.estimator = nn.Sequential(*estimator)
-
-    def forward(self, x, v):
-        x = self.image_encoder(x)
-        x_flat = x.squeeze()
-        x_v = torch.cat((x_flat, v), dim=1)
-        output = self.estimator(x_v)
-        return output
 
 # Define a resnet block
 # modified from https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/blob/master/models/networks.py

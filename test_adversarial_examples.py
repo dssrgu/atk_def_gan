@@ -17,7 +17,7 @@ batch_size = 128
 def parameters_count(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
-def tester(dataset, dataloader, device, target_model, E, defG, advG, mine, vec_nc, eps, label_count=True, save_img=False):
+def tester(dataset, dataloader, device, target_model, E, defG, advG, eps, label_count=True, save_img=False):
     
     # load PGD
     pgd = PGD(target_model, E, defG, device)
@@ -51,11 +51,8 @@ def tester(dataset, dataloader, device, target_model, E, defG, advG, mine, vec_n
         target_one_hot = target_one_hot.view(-1, 10, 1, 1)
         '''
         
-        z = torch.rand(test_label.shape[0], vec_nc).to(device) * 2 - 1
-        z_res = z.view(-1, vec_nc, 1, 1)
-        
         # prep images
-        adv_noise = advG(E(test_img), z_res)
+        adv_noise = advG(E(test_img))
         adv_img = adv_noise * eps + test_img
         adv_img = torch.clamp(adv_img, 0, 1)
 
@@ -172,14 +169,14 @@ def tester(dataset, dataloader, device, target_model, E, defG, advG, mine, vec_n
 
         print('images saved')
 
-def test_full(device, target_model, E, defG, advG, mine, vec_nc, eps, label_count=True, save_img=True):
+def test_full(device, target_model, E, defG, advG, eps, label_count=True, save_img=True):
     
     # test adversarial examples in MNIST training dataset
     mnist_dataset = torchvision.datasets.MNIST('./dataset', train=True, transform=transforms.ToTensor(), download=True)
     train_dataloader = DataLoader(mnist_dataset, batch_size=batch_size, shuffle=False, num_workers=1)
 
     print('MNIST training dataset:')
-    tester(mnist_dataset, train_dataloader, device, target_model, E, defG, advG, mine, vec_nc, eps, label_count, False)
+    tester(mnist_dataset, train_dataloader, device, target_model, E, defG, advG, eps, label_count, False)
 
     # test adversarial examples in MNIST testing dataset
     mnist_dataset_test = torchvision.datasets.MNIST('./dataset', train=False, transform=transforms.ToTensor(),
@@ -187,7 +184,7 @@ def test_full(device, target_model, E, defG, advG, mine, vec_nc, eps, label_coun
     test_dataloader = DataLoader(mnist_dataset_test, batch_size=batch_size, shuffle=False, num_workers=1)
 
     print('MNIST test dataset:')
-    tester(mnist_dataset_test, test_dataloader, device, target_model, E, defG, advG, mine, vec_nc, eps, label_count, save_img)
+    tester(mnist_dataset_test, test_dataloader, device, target_model, E, defG, advG, eps, label_count, save_img)
 
 
 if __name__ == '__main__':
@@ -196,7 +193,6 @@ if __name__ == '__main__':
 
     parser.add_argument('--epoch', default=100, type=int)
     parser.add_argument('--model_name', default='', type=str)
-    parser.add_argument('--vec_nc', default=10, type=int)
     parser.add_argument('--eps', default=0.3, type=float)
     parser.add_argument('--parameters_count', action='store_true')
     parser.add_argument('--label_count', action='store_true')
@@ -242,12 +238,4 @@ if __name__ == '__main__':
         print('number of parameters(defG):', parameters_count(defG))
     defG.eval()
 
-    mine_path = './models/' + model_name + 'mine_epoch_{}.pth'.format(epoch)
-    mine = models.Mine(image_nc, args.vec_nc).to(device)
-    mine.load_state_dict(torch.load(mine_path))
-    if args.parameters_count:
-        print('number of parameters(mine):', parameters_count(mine))
-        print()
-    mine.eval()
-    
-    test_full(device, target_model, E, defG, advG, mine, args.vec_nc, args.eps, label_count=True)
+    test_full(device, target_model, E, defG, advG, args.eps, label_count=True)

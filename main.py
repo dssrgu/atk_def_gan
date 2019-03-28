@@ -9,7 +9,6 @@ from tensorboardX import SummaryWriter
 
 use_cuda = True
 image_nc = 1
-vec_nc = 10
 batch_size = 128
 BOX_MIN = 0
 BOX_MAX = 1
@@ -18,8 +17,6 @@ eps = 0.3
 parser = argparse.ArgumentParser()
 
 parser.add_argument('--model_name', default='', type=str)
-parser.add_argument('--vec_nc', default=10, type=int)
-parser.add_argument('--mine_scale', default=0.1, type=float)
 parser.add_argument('--log_base_dir', default='mnist/data', type=str)
 parser.add_argument('--no_logging', action='store_true')
 parser.add_argument('--epochs', default=60, type=int)
@@ -32,7 +29,7 @@ for arg in vars(args):
 if args.no_logging:
     writer = None
 else:
-    log_base_dir = args.log_base_dir + '/'+'vec{}'.format(args.vec_nc) + '_' + 'mine{}'.format(args.mine_scale)
+    log_base_dir = args.log_base_dir
     writer = SummaryWriter(log_base_dir)
 
 # Define what device we are using print("CUDA Available: ",torch.cuda.is_available())
@@ -51,8 +48,6 @@ advGAN = AdvGAN_Attack(device,
                           targeted_model,
                           model_num_labels,
                           image_nc,
-                          args.vec_nc,
-                          args.mine_scale,
                           BOX_MIN,
                           BOX_MAX,
                           eps,
