@@ -72,7 +72,6 @@ class Generator(nn.Module):
                            ]
 
         decoder_nc = 32
-        decoder_nc = decoder_nc*2 if self.adv else decoder_nc
 
         decoder_lis = [
             nn.ConvTranspose2d(decoder_nc, 16, kernel_size=3, stride=2, padding=0, bias=False),

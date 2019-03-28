@@ -6,9 +6,9 @@ from autopar import make_par
 from sbatch_launcher import launch_tasks, srun_gpuless_task
 
 NUM_PROCS_ON_GPU = 1
-PARTITION = 'mllab'  # 'mllab', 'all', or 'dept'
+PARTITION = 'all'  # 'mllab', 'all', or 'dept'
 
-PYTHON_FILE = 'main.py'
+PYTHON_FILE = 'test_adversarial_examples.py'
 IMPORT_PATHS = ['.']
 TENSORBOARD_DIR = 'mnist/data'
 COMMON_PARAMS = '--log_base_dir {}'.format(TENSORBOARD_DIR)
@@ -17,8 +17,10 @@ LABEL = 'test_exp'
 QOS_TYPE = 'normal'  # 'normal' or 'highprio'
 
 PARAM_DICT = {
-    '--vec_nc' : [10, 50, 100, 150],
-    '--mine_scale' : [10, 1, 0.1, 0.01],
+    '--beta' : [0.001, 0.01, 0.1, 1, 10, 100, 1000],
+    '--Eadv' : ['True', 'False'],
+    '--Gadv' : ['True', 'False'],
+    #'--logging' : ['True'],
 }
 
 # If you don't use python, you can just assign the base command string to
@@ -73,5 +75,5 @@ launch_tasks(
         qos=QOS_TYPE,
 )
 
-srun_gpuless_task(r"""bash -c 'tensorboard --host=$(hostname).mllab.snu.ac.kr --port=0 --logdir={}'""".format(TENSORBOARD_DIR))
+#srun_gpuless_task(r"""bash -c 'tensorboard --host=$(hostname).mllab.snu.ac.kr --port=0 --logdir={}'""".format(TENSORBOARD_DIR))
 

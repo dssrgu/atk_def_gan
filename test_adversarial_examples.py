@@ -4,6 +4,7 @@ import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 from torchvision.utils import make_grid, save_image
 import models
+import os
 from models import MNIST_target_net
 from pgd_attack import PGD
 import argparse
@@ -13,11 +14,17 @@ import numpy as np
 use_cuda = True
 image_nc = 1
 batch_size = 128
+models_path = './models/'
+
+def boolean_string(s):
+    if s not in {'False', 'True'}:
+        raise ValueError('Not a valid boolean string')
+    return s == 'True'
 
 def parameters_count(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
-def tester(dataset, dataloader, device, target_model, E, defG, advG, eps, label_count=True, save_img=False):
+def tester(dataset, dataloader, device, target_model, E, defG, advG, recG, eps, label_count=True, save_img=False):
     
     # load PGD
     pgd = PGD(target_model, E, defG, device)
@@ -27,6 +34,7 @@ def tester(dataset, dataloader, device, target_model, E, defG, advG, eps, label_
     num_correct_def_adv = 0
     num_correct_def = 0
     num_correct_def_pgd = 0
+    num_correct_rec = 0
     num_correct = 0
 
     test_img_full = []
@@ -35,6 +43,7 @@ def tester(dataset, dataloader, device, target_model, E, defG, advG, eps, label_
     def_img_full = []
     def_adv_img_full = []
     def_pgd_img_full = []
+    rec_img_full = []
 
     pred_adv_full = []
     pred_pgd_full = []
@@ -52,6 +61,9 @@ def tester(dataset, dataloader, device, target_model, E, defG, advG, eps, label_
         '''
         
         # prep images
+        rec_img = recG(E(test_img))
+        rec_img = torch.clamp(rec_img, 0, 1)
+        
         adv_noise = advG(E(test_img))
         adv_img = adv_noise * eps + test_img
         adv_img = torch.clamp(adv_img, 0, 1)
@@ -73,19 +85,21 @@ def tester(dataset, dataloader, device, target_model, E, defG, advG, eps, label_
         pgd_nat_img = pgd.perturb(test_img, test_label, base=True)
 
         # calculate acc.
+        pred = torch.argmax(target_model(test_img), 1)
+        pred_rec = torch.argmax(target_model(rec_img), 1)
         pred_adv = torch.argmax(target_model(adv_img), 1)
         pred_pgd = torch.argmax(target_model(pgd_nat_img), 1)
         pred_def_adv = torch.argmax(target_model(def_adv_img), 1)
         pred_def = torch.argmax(target_model(def_img), 1)
         pred_def_pgd = torch.argmax(target_model(def_pgd_img), 1)
-        pred = torch.argmax(target_model(test_img), 1)
 
+        num_correct += torch.sum(pred == test_label, 0)
+        num_correct_rec += torch.sum(pred_rec == test_label, 0)
         num_correct_adv += torch.sum(pred_adv == test_label, 0)
         num_correct_pgd += torch.sum(pred_pgd == test_label, 0)
         num_correct_def_adv += torch.sum(pred_def_adv == test_label, 0)
         num_correct_def += torch.sum(pred_def == test_label, 0)
         num_correct_def_pgd += torch.sum(pred_def_pgd == test_label, 0)
-        num_correct += torch.sum(pred == test_label, 0)
 
         if label_count:
             pred_adv_full.append(pred_adv)
@@ -94,28 +108,33 @@ def tester(dataset, dataloader, device, target_model, E, defG, advG, eps, label_
 
         if save_img and i < 1:
             test_img_full.append(test_img)
+            rec_img_full.append(rec_img)
             adv_img_full.append(adv_img)
             pgd_img_full.append(pgd_nat_img)
             def_img_full.append(def_img)
             def_adv_img_full.append(def_adv_img)
             def_pgd_img_full.append(def_pgd_img)
 
+    print('num_correct(nat): ', num_correct.item())
+    print('num_correct(rec): ', num_correct_rec.item())
     print('num_correct(adv): ', num_correct_adv.item())
     print('num_correct(pgd): ', num_correct_pgd.item())
     print('num_correct(def(adv)): ', num_correct_def_adv.item())
     print('num_correct(def(nat)): ', num_correct_def.item())
     print('num_correct(def(pgd)): ', num_correct_def_pgd.item())
-    print('num_correct(nat): ', num_correct.item())
     print()
 
+    print('accuracy of nat imgs: %f' % (num_correct.item() / len(dataset)))
+    print('accuracy of rec imgs: %f' % (num_correct_rec.item() / len(dataset)))
     print('accuracy of adv imgs: %f' % (num_correct_adv.item() / len(dataset)))
     print('accuracy of pgd imgs: %f' % (num_correct_pgd.item() / len(dataset)))
     print('accuracy of def(adv) imgs: %f' % (num_correct_def_adv.item() / len(dataset)))
     print('accuracy of def(nat) imgs: %f' % (num_correct_def.item() / len(dataset)))
     print('accuracy of def(pgd) imgs: %f' % (num_correct_def_pgd.item() / len(dataset)))
-    print('accuracy of nat imgs: %f' % (num_correct.item() / len(dataset)))
     print()
 
+    l_inf = np.amax(np.abs(rec_img.cpu().detach().numpy() - test_img.cpu().detach().numpy()))
+    print('l-inf of rec imgs:%f' % (l_inf))
     l_inf = np.amax(np.abs(adv_img.cpu().detach().numpy() - test_img.cpu().detach().numpy()))
     print('l-inf of adv imgs:%f' % (l_inf))
     l_inf = np.amax(np.abs(def_img.cpu().detach().numpy() - test_img.cpu().detach().numpy()))
@@ -147,6 +166,7 @@ def tester(dataset, dataloader, device, target_model, E, defG, advG, eps, label_
 
     if save_img:
         test_img_full = torch.cat(test_img_full)
+        rec_img_full = torch.cat(rec_img_full)
         adv_img_full = torch.cat(adv_img_full)
         pgd_img_full = torch.cat(pgd_img_full)
         def_img_full = torch.cat(def_img_full)
@@ -154,29 +174,34 @@ def tester(dataset, dataloader, device, target_model, E, defG, advG, eps, label_
         def_pgd_img_full = torch.cat(def_pgd_img_full)
 
         test_grid = make_grid(test_img_full)
+        rec_grid = make_grid(rec_img_full)
         adv_grid = make_grid(adv_img_full)
         pgd_grid = make_grid(pgd_img_full)
         def_grid = make_grid(def_img_full)
         def_adv_grid = make_grid(def_adv_img_full)
         def_pgd_grid = make_grid(def_pgd_img_full)
 
+        if not os.path.exists('./out/' + model_name):
+            os.makedirs('./out/' + model_name)
+
         save_image(test_grid, './out/' + model_name + 'test_grid.png')
+        save_image(rec_grid, './out/' + model_name + 'rec_grid.png')
         save_image(adv_grid, './out/' + model_name + 'adv_grid.png')
         save_image(pgd_grid, './out/' + model_name + 'pgd_grid.png')
         save_image(def_grid, './out/' + model_name + 'def_grid.png')
         save_image(def_adv_grid, './out/' + model_name + 'def_adv_grid.png')
         save_image(def_pgd_grid, './out/' + model_name + 'def_pgd_grid.png')
-
+        
         print('images saved')
 
-def test_full(device, target_model, E, defG, advG, eps, label_count=True, save_img=True):
+def test_full(device, target_model, E, defG, advG, recG, eps, label_count=True, save_img=True):
     
     # test adversarial examples in MNIST training dataset
     mnist_dataset = torchvision.datasets.MNIST('./dataset', train=True, transform=transforms.ToTensor(), download=True)
     train_dataloader = DataLoader(mnist_dataset, batch_size=batch_size, shuffle=False, num_workers=1)
 
     print('MNIST training dataset:')
-    tester(mnist_dataset, train_dataloader, device, target_model, E, defG, advG, eps, label_count, False)
+    tester(mnist_dataset, train_dataloader, device, target_model, E, defG, advG, recG, eps, label_count, False)
 
     # test adversarial examples in MNIST testing dataset
     mnist_dataset_test = torchvision.datasets.MNIST('./dataset', train=False, transform=transforms.ToTensor(),
@@ -184,7 +209,7 @@ def test_full(device, target_model, E, defG, advG, eps, label_count=True, save_i
     test_dataloader = DataLoader(mnist_dataset_test, batch_size=batch_size, shuffle=False, num_workers=1)
 
     print('MNIST test dataset:')
-    tester(mnist_dataset_test, test_dataloader, device, target_model, E, defG, advG, eps, label_count, save_img)
+    tester(mnist_dataset_test, test_dataloader, device, target_model, E, defG, advG, recG, eps, label_count, save_img)
 
 
 if __name__ == '__main__':
@@ -192,12 +217,17 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--epoch', default=100, type=int)
-    parser.add_argument('--model_name', default='', type=str)
+    parser.add_argument('--beta', default=1, type=float)
+    parser.add_argument('--Eadv', default='True', type=boolean_string)
+    parser.add_argument('--Gadv', default='True', type=boolean_string)
     parser.add_argument('--eps', default=0.3, type=float)
     parser.add_argument('--parameters_count', action='store_true')
-    parser.add_argument('--label_count', action='store_true')
+    parser.add_argument('--labels_count', action='store_true')
+    parser.add_argument('--log_base_dir', type=str)
 
     args = parser.parse_args()
+
+    model_name = 'beta{}'.format(args.beta) + ('_Eadv' if args.Eadv else '') + ('_Gadv' if args.Gadv else '') + '/'
 
     en_input_nc = image_nc
     # Define what device we are using
@@ -214,28 +244,35 @@ if __name__ == '__main__':
     target_model.eval()
 
     epoch = args.epoch
-    model_name = (args.model_name + '_') if args.model_name else args.model_name
 
     # load encoder & generators
-    E_path = './models/' + model_name + 'E_epoch_{}.pth'.format(epoch)
+    E_path = models_path + model_name + 'E_epoch_{}.pth'.format(epoch)
     E = models.Encoder(en_input_nc).to(device)
     E.load_state_dict(torch.load(E_path))
     if args.parameters_count:
         print('number of parameters(E):', parameters_count(E))
     E.eval()
 
-    advG_path = './models/' + model_name + 'advG_epoch_{}.pth'.format(epoch)
-    advG = models.Generator(image_nc, args.vec_nc).to(device)
+    advG_path = models_path + model_name + 'advG_epoch_{}.pth'.format(epoch)
+    advG = models.Generator(image_nc).to(device)
     advG.load_state_dict(torch.load(advG_path))
     if args.parameters_count:
         print('number of parameters(advG):', parameters_count(advG))
     advG.eval()
 
-    defG_path = './models/' + model_name + 'defG_epoch_{}.pth'.format(epoch)
-    defG = models.Generator(image_nc, args.vec_nc, adv=False).to(device)
+    defG_path = models_path + model_name + 'defG_epoch_{}.pth'.format(epoch)
+    defG = models.Generator(image_nc, adv=False).to(device)
     defG.load_state_dict(torch.load(defG_path))
     if args.parameters_count:
         print('number of parameters(defG):', parameters_count(defG))
     defG.eval()
 
-    test_full(device, target_model, E, defG, advG, args.eps, label_count=True)
+    recG_path = models_path + model_name + 'recG_epoch_{}.pth'.format(epoch)
+    recG = models.Generator(image_nc, adv=False).to(device)
+    recG.load_state_dict(torch.load(recG_path))
+    if args.parameters_count:
+        print('number of parameters(recG):', parameters_count(recG))
+        print()
+    recG.eval()
+
+    test_full(device, target_model, E, defG, advG, recG, args.eps, label_count=True)

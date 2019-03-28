@@ -14,23 +14,32 @@ BOX_MIN = 0
 BOX_MAX = 1
 eps = 0.3
 
+def boolean_string(s):
+    if s not in {'False', 'True'}:
+        raise ValueError('Not a valid boolean string')
+    return s == 'True'
+
 parser = argparse.ArgumentParser()
 
-parser.add_argument('--model_name', default='', type=str)
 parser.add_argument('--log_base_dir', default='mnist/data', type=str)
-parser.add_argument('--no_logging', action='store_true')
-parser.add_argument('--epochs', default=60, type=int)
+parser.add_argument('--beta', default=1, type=float)
+parser.add_argument('--Eadv', default='True', type=boolean_string)
+parser.add_argument('--Gadv', default='True', type=boolean_string)
+parser.add_argument('--logging', default='False', type=boolean_string)
+parser.add_argument('--epochs', default=100, type=int)
 
 args = parser.parse_args()
 for arg in vars(args):
     print (arg, getattr(args, arg))
-    
+
+model_name = 'beta{}'.format(args.beta) + ('_Eadv' if args.Eadv else '') + ('_Gadv' if args.Gadv else '') +  '/'
+
 # tensorboard writer
-if args.no_logging:
-    writer = None
-else:
-    log_base_dir = args.log_base_dir
+if args.logging:
+    log_base_dir = args.log_base_dir + '/' +  model_name
     writer = SummaryWriter(log_base_dir)
+else:
+    writer = None
 
 # Define what device we are using print("CUDA Available: ",torch.cuda.is_available())
 device = torch.device("cuda" if (use_cuda and torch.cuda.is_available()) else "cpu")
@@ -48,10 +57,13 @@ advGAN = AdvGAN_Attack(device,
                           targeted_model,
                           model_num_labels,
                           image_nc,
+                          args.beta,
+                          args.Eadv,
+                          args.Gadv,
                           BOX_MIN,
                           BOX_MAX,
                           eps,
-                          args.model_name,
+                          model_name,
                           writer)
 
 advGAN.train(dataloader, args.epochs)

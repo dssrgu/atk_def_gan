@@ -27,6 +27,9 @@ class AdvGAN_Attack:
                  model,
                  model_num_labels,
                  image_nc,
+                 beta,
+                 Eadv,
+                 Gadv,
                  box_min,
                  box_max,
                  eps,
@@ -39,10 +42,13 @@ class AdvGAN_Attack:
         self.model = model
         self.input_nc = image_nc
         self.output_nc = output_nc
+        self.beta = beta
+        self.Eadv = Eadv
+        self.Gadv = Gadv
         self.box_min = box_min
         self.box_max = box_max
         self.eps = eps
-        self.model_name = (model_name + '_') if model_name else model_name
+        self.model_name = model_name
         self.writer = writer
         self.init_lr = init_lr
         self.rec_loss = nn.MSELoss()
@@ -51,7 +57,7 @@ class AdvGAN_Attack:
         self.E = models.Encoder(self.en_input_nc).to(device)
         self.advG = models.Generator(image_nc).to(device)
         self.defG = models.Generator(image_nc, adv=False).to(device)
-        self.recG = models.Generator(image_nc).to(device)
+        self.recG = models.Generator(image_nc, adv=False).to(device)
 
         # initialize all weights
         self.E.apply(weights_init)
@@ -71,7 +77,9 @@ class AdvGAN_Attack:
 
         if not os.path.exists(models_path):
             os.makedirs(models_path)
-
+        if not os.path.exists(models_path + self.model_name):
+            os.makedirs(models_path + self.model_name)
+    
     # generate images for training
     def gen_images(self, x):
 
@@ -99,7 +107,7 @@ class AdvGAN_Attack:
         self.E.eval()
         self.defG.eval()
         
-        test_full(self.device, self.model, self.E, self.defG, self.advG, self.eps, label_count=True, save_img=False)
+        test_full(self.device, self.model, self.E, self.defG, self.advG, self.recG, self.eps, label_count=True, save_img=False)
         
         self.E.train()
         self.defG.train()
@@ -131,7 +139,10 @@ class AdvGAN_Attack:
             loss_def = F.cross_entropy(logits_def, labels)
 
             # ???
-            loss_E = loss_rec
+            if self.Eadv:
+                loss_E = loss_rec + self.beta * (loss_adv + loss_def_adv)
+            else:
+                loss_E = loss_rec + self.beta * (-loss_def_adv)
 
             loss_E.backward()
             
@@ -154,7 +165,10 @@ class AdvGAN_Attack:
             loss_def_adv = -F.cross_entropy(logits_def_adv, labels)
 
             # backprop
-            loss_advG = loss_adv + loss_def_adv
+            if self.Gadv:
+                loss_advG = loss_adv + loss_def_adv
+            else:
+                loss_advG = loss_def_adv
 
             loss_advG.backward()
             
@@ -272,7 +286,7 @@ class AdvGAN_Attack:
                 self.writer.add_scalar('loss_E', loss_E_sum/num_batch, epoch)
                 self.writer.add_scalar('loss_advG', loss_advG_sum/num_batch, epoch)
                 self.writer.add_scalar('loss_defG', loss_defG_sum/num_batch, epoch)
-                self.writer.add_scalar('loss_mine', loss_recG_sum/num_batch, epoch)
+                self.writer.add_scalar('loss_recG', loss_recG_sum/num_batch, epoch)
                 self.writer.add_scalar('pgd_acc', pgd_acc_sum/num_batch, epoch)
 
             # save generator
