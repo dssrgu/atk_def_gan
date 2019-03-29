@@ -8,22 +8,16 @@ import os
 from models import MNIST_target_net
 from pgd_attack import PGD
 import argparse
-
 import numpy as np
+from utils import boolean_string, parameters_count
 
 use_cuda = True
 image_nc = 1
 batch_size = 128
 models_path = './models/'
 
-def boolean_string(s):
-    if s not in {'False', 'True'}:
-        raise ValueError('Not a valid boolean string')
-    return s == 'True'
 
-def parameters_count(model):
-    return sum(p.numel() for p in model.parameters() if p.requires_grad)
-
+# train on a given data set
 def tester(dataset, dataloader, device, target_model, E, defG, advG, recG, eps, label_count=True, save_img=False):
     
     # load PGD
@@ -194,6 +188,7 @@ def tester(dataset, dataloader, device, target_model, E, defG, advG, recG, eps, 
         
         print('images saved')
 
+# train on both training and test set
 def test_full(device, target_model, E, defG, advG, recG, eps, label_count=True, save_img=True):
     
     # test adversarial examples in MNIST training dataset
@@ -218,7 +213,6 @@ if __name__ == '__main__':
 
     parser.add_argument('--epoch', default=100, type=int)
     parser.add_argument('--beta', default=1, type=float)
-    parser.add_argument('--Eadv', default='True', type=boolean_string)
     parser.add_argument('--Gadv', default='True', type=boolean_string)
     parser.add_argument('--eps', default=0.3, type=float)
     parser.add_argument('--parameters_count', action='store_true')
@@ -229,7 +223,7 @@ if __name__ == '__main__':
     for arg in vars(args):
         print(arg, getattr(args, arg))
 
-    model_name = 'beta{}'.format(args.beta) + ('_Eadv' if args.Eadv else '') + ('_Gadv' if args.Gadv else '') + '/'
+    model_name = 'beta{}'.format(args.beta) + ('_recadv') + ('_Gadv' if args.Gadv else '') + '/'
 
     en_input_nc = image_nc
     # Define what device we are using
@@ -240,7 +234,7 @@ if __name__ == '__main__':
     # load the pretrained model
     model_path = "./MNIST_target_model.pth"
     target_model = MNIST_target_net().to(device)
-    target_model.load_state_dict(torch.load(model_path))
+    target_model.load_state_dict(torch.load(model_path, map_location=device))
     if args.parameters_count:
         print('number of parameters(model):', parameters_count(target_model))
     target_model.eval()
@@ -250,28 +244,28 @@ if __name__ == '__main__':
     # load encoder & generators
     E_path = models_path + model_name + 'E_epoch_{}.pth'.format(epoch)
     E = models.Encoder(en_input_nc).to(device)
-    E.load_state_dict(torch.load(E_path))
+    E.load_state_dict(torch.load(E_path, map_location=device))
     if args.parameters_count:
         print('number of parameters(E):', parameters_count(E))
     E.eval()
 
     advG_path = models_path + model_name + 'advG_epoch_{}.pth'.format(epoch)
     advG = models.Generator(image_nc).to(device)
-    advG.load_state_dict(torch.load(advG_path))
+    advG.load_state_dict(torch.load(advG_path, map_location=device))
     if args.parameters_count:
         print('number of parameters(advG):', parameters_count(advG))
     advG.eval()
 
     defG_path = models_path + model_name + 'defG_epoch_{}.pth'.format(epoch)
     defG = models.Generator(image_nc, adv=False).to(device)
-    defG.load_state_dict(torch.load(defG_path))
+    defG.load_state_dict(torch.load(defG_path, map_location=device))
     if args.parameters_count:
         print('number of parameters(defG):', parameters_count(defG))
     defG.eval()
 
     recG_path = models_path + model_name + 'recG_epoch_{}.pth'.format(epoch)
     recG = models.Generator(image_nc, adv=False).to(device)
-    recG.load_state_dict(torch.load(recG_path))
+    recG.load_state_dict(torch.load(recG_path, map_location=device))
     if args.parameters_count:
         print('number of parameters(recG):', parameters_count(recG))
         print()
