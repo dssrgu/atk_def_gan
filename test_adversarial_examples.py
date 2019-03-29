@@ -15,10 +15,11 @@ use_cuda = True
 image_nc = 1
 batch_size = 128
 models_path = './models/'
+out_path = './out/'
 
 
 # train on a given data set
-def tester(dataset, dataloader, device, target_model, E, defG, advG, recG, eps, label_count=True, save_img=False):
+def tester(dataset, dataloader, device, target_model, E, defG, advG, recG, eps, out_path, model_name, label_count=True, save_img=False):
     
     # load PGD
     pgd = PGD(target_model, E, defG, device)
@@ -175,28 +176,29 @@ def tester(dataset, dataloader, device, target_model, E, defG, advG, recG, eps, 
         def_adv_grid = make_grid(def_adv_img_full)
         def_pgd_grid = make_grid(def_pgd_img_full)
 
-        if not os.path.exists('./out/' + model_name):
-            os.makedirs('./out/' + model_name)
+        if not os.path.exists(out_path + model_name):
+            os.makedirs(out_path + model_name)
 
-        save_image(test_grid, './out/' + model_name + 'test_grid.png')
-        save_image(rec_grid, './out/' + model_name + 'rec_grid.png')
-        save_image(adv_grid, './out/' + model_name + 'adv_grid.png')
-        save_image(pgd_grid, './out/' + model_name + 'pgd_grid.png')
-        save_image(def_grid, './out/' + model_name + 'def_grid.png')
-        save_image(def_adv_grid, './out/' + model_name + 'def_adv_grid.png')
-        save_image(def_pgd_grid, './out/' + model_name + 'def_pgd_grid.png')
+        save_image(test_grid, out_path + model_name + 'test_grid.png')
+        save_image(rec_grid, out_path + model_name + 'rec_grid.png')
+        save_image(adv_grid, out_path + model_name + 'adv_grid.png')
+        save_image(pgd_grid, out_path + model_name + 'pgd_grid.png')
+        save_image(def_grid, out_path + model_name + 'def_grid.png')
+        save_image(def_adv_grid, out_path + model_name + 'def_adv_grid.png')
+        save_image(def_pgd_grid, out_path + model_name + 'def_pgd_grid.png')
         
         print('images saved')
 
+
 # train on both training and test set
-def test_full(device, target_model, E, defG, advG, recG, eps, label_count=True, save_img=True):
+def test_full(device, target_model, E, defG, advG, recG, eps, out_path, model_name, label_count=True, save_img=True):
     
     # test adversarial examples in MNIST training dataset
     mnist_dataset = torchvision.datasets.MNIST('./dataset', train=True, transform=transforms.ToTensor(), download=True)
     train_dataloader = DataLoader(mnist_dataset, batch_size=batch_size, shuffle=False, num_workers=1)
 
     print('MNIST training dataset:')
-    tester(mnist_dataset, train_dataloader, device, target_model, E, defG, advG, recG, eps, label_count, False)
+    tester(mnist_dataset, train_dataloader, device, target_model, E, defG, advG, recG, eps, out_path, model_name, label_count, False)
 
     # test adversarial examples in MNIST testing dataset
     mnist_dataset_test = torchvision.datasets.MNIST('./dataset', train=False, transform=transforms.ToTensor(),
@@ -204,7 +206,7 @@ def test_full(device, target_model, E, defG, advG, recG, eps, label_count=True, 
     test_dataloader = DataLoader(mnist_dataset_test, batch_size=batch_size, shuffle=False, num_workers=1)
 
     print('MNIST test dataset:')
-    tester(mnist_dataset_test, test_dataloader, device, target_model, E, defG, advG, recG, eps, label_count, save_img)
+    tester(mnist_dataset_test, test_dataloader, device, target_model, E, defG, advG, recG, eps, out_path, model_name, label_count, save_img)
 
 
 if __name__ == '__main__':
@@ -271,4 +273,4 @@ if __name__ == '__main__':
         print()
     recG.eval()
 
-    test_full(device, target_model, E, defG, advG, recG, args.eps, label_count=True)
+    test_full(device, target_model, E, defG, advG, recG, args.eps, out_path, model_name, label_count=True)

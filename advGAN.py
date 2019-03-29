@@ -9,9 +9,6 @@ from test_adversarial_examples import test_full
 from pgd_attack import PGD
 from utils import weights_init
 
-models_path = './models/'
-
-
 class AdvGAN_Attack:
     def __init__(self,
                  device,
@@ -23,6 +20,8 @@ class AdvGAN_Attack:
                  box_min,
                  box_max,
                  eps,
+                 models_path,
+                 out_path,
                  model_name,
                  writer,
                  init_lr=0.001):
@@ -37,6 +36,8 @@ class AdvGAN_Attack:
         self.box_min = box_min
         self.box_max = box_max
         self.eps = eps
+        self.models_path = models_path
+        self.out_path = out_path
         self.model_name = model_name
         self.writer = writer
         self.init_lr = init_lr
@@ -94,13 +95,17 @@ class AdvGAN_Attack:
     def test(self):
 
         self.E.eval()
+        self.advG.eval()
         self.defG.eval()
+        self.recG.eval()
 
         test_full(self.device, self.model, self.E, self.defG, self.advG, self.recG, self.eps,
-                  label_count=True, save_img=False)
+                  self.out_path, self.model_name, label_count=True, save_img=False)
 
         self.E.train()
+        self.advG.train()
         self.defG.train()
+        self.recG.train()
 
     # train single batch
     def train_batch(self, x, labels):
@@ -282,10 +287,10 @@ class AdvGAN_Attack:
 
             # save generator
             if epoch%20==0:
-                E_file_name = models_path + self.model_name + 'E_epoch_' + str(epoch) + '.pth'
-                advG_file_name = models_path + self.model_name + 'advG_epoch_' + str(epoch) + '.pth'
-                defG_file_name = models_path + self.model_name + 'defG_epoch_' + str(epoch) + '.pth'
-                recG_file_name = models_path + self.model_name + 'recG_epoch_' + str(epoch) + '.pth'
+                E_file_name = self.models_path + self.model_name + 'E_epoch_' + str(epoch) + '.pth'
+                advG_file_name = self.models_path + self.model_name + 'advG_epoch_' + str(epoch) + '.pth'
+                defG_file_name = self.models_path + self.model_name + 'defG_epoch_' + str(epoch) + '.pth'
+                recG_file_name = self.models_path + self.model_name + 'recG_epoch_' + str(epoch) + '.pth'
                 torch.save(self.E.state_dict(), E_file_name)
                 torch.save(self.advG.state_dict(), advG_file_name)
                 torch.save(self.defG.state_dict(), defG_file_name)

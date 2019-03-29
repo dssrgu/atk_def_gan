@@ -14,6 +14,10 @@ batch_size = 128
 BOX_MIN = 0
 BOX_MAX = 1
 eps = 0.3
+# model save path
+models_path = './models/'
+# image output path
+out_path = './out/'
 
 parser = argparse.ArgumentParser()
 
@@ -33,6 +37,7 @@ model_name = 'beta{}'.format(args.beta) + ('_recadv') + ('_Gadv' if args.Gadv el
 if args.logging:
     log_base_dir = args.log_base_dir + '/' + model_name
     writer = SummaryWriter(log_base_dir)
+    print("logging at:", log_base_dir)
 else:
     writer = None
 
@@ -57,6 +62,8 @@ advGAN = AdvGAN_Attack(device,
                        BOX_MIN,
                        BOX_MAX,
                        eps,
+                       models_path,
+                       out_path,
                        model_name,
                        writer)
 
