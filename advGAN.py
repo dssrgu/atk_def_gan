@@ -218,12 +218,13 @@ class AdvGAN_Attack:
 
         pgd_acc_li = []
 
-        for iter in self.pgd_iter:
+        for it in self.pgd_iter:
 
-            pgd_img = self.pgd.perturb(x, labels, iter=iter)
+            pgd_img = self.pgd.perturb(x, labels, it=it)
 
-            for _ in range(iter):
+            for _ in range(it):
                 pgd_img = self.defG(self.E(pgd_img)) + pgd_img
+                pgd_img = torch.clamp(pgd_img, self.box_min, self.box_max)
 
             pred = torch.argmax(self.model(pgd_img), 1)
             num_correct = torch.sum(pred == labels, 0)
@@ -280,14 +281,14 @@ class AdvGAN_Attack:
 
             # print statistics
             num_batch = len(train_dataloader)
-            print("epoch %d:\nloss_E: %.5f, loss_advG: %.5f, loss_defG: %.5f, loss_recG: %.5f\n" %
+            print("epoch %d:\nloss_E: %.5f, loss_advG: %.5f, loss_defG: %.5f, loss_recG: %.5f" %
                   (epoch, loss_E_sum/num_batch, loss_advG_sum/num_batch,
                    loss_defG_sum/num_batch, loss_recG_sum/num_batch))
 
-            pgd_acc_li = np.mean(np.array(pgd_acc_li_sum))
-            for idx in range(len(pgd_acc_li)):
-                print("pgd iter %d acc.: %.5f" % (self.pgd_iter[idx], pgd_acc_li[idx]), end='')
-            print()
+            pgd_acc_li_sum = np.mean(np.array(pgd_acc_li_sum), axis=0)
+            for idx in range(len(self.pgd_iter)):
+                print("pgd iter %d acc.: %.5f" % (self.pgd_iter[idx], pgd_acc_li_sum[idx]), end=' ')
+            print("\n")
 
             # write to tensorboard
             if self.writer:
@@ -295,8 +296,8 @@ class AdvGAN_Attack:
                 self.writer.add_scalar('loss_advG', loss_advG_sum/num_batch, epoch)
                 self.writer.add_scalar('loss_defG', loss_defG_sum/num_batch, epoch)
                 self.writer.add_scalar('loss_recG', loss_recG_sum/num_batch, epoch)
-                for idx in range(len(pgd_acc_li)):
-                    self.writer.add_scalar('pgd_acc_%d' % (self.pgd_iter[idx]), pgd_acc_li[idx], epoch)
+                for idx in range(len(self.pgd_iter)):
+                    self.writer.add_scalar('pgd_acc_%d' % (self.pgd_iter[idx]), pgd_acc_li_sum[idx], epoch)
 
             # save generator
             if epoch%20==0:

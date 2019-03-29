@@ -17,6 +17,8 @@ class MNIST_target_net(nn.Module):
         self.logits = nn.Linear(200, 10)
 
     def forward(self, x):
+        assert not torch.any(x > 1)
+        assert not torch.any(x < 0)
         x = F.relu(self.conv1(x))
         x = F.relu(self.conv2(x))
         x = F.max_pool2d(x, 2)
