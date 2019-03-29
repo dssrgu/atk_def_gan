@@ -5,7 +5,7 @@ import torch.nn as nn
 def boolean_string(s):
     if s not in {'False', 'True'}:
         raise ValueError('Not a valid boolean string')
-    return s == True
+    return s == 'True'
 
 
 # custom weights initialization called on netG and netD
