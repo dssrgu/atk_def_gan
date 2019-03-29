@@ -226,6 +226,8 @@ if __name__ == '__main__':
     parser.add_argument('--log_base_dir', type=str)
 
     args = parser.parse_args()
+    for arg in vars(args):
+        print(arg, getattr(args, arg))
 
     model_name = 'beta{}'.format(args.beta) + ('_Eadv' if args.Eadv else '') + ('_Gadv' if args.Gadv else '') + '/'
 
