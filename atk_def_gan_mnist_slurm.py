@@ -17,7 +17,6 @@ LABEL = 'test_exp'
 QOS_TYPE = 'normal'  # 'normal' or 'highprio'
 
 PARAM_DICT = {
-    '--beta' : [0.001, 0.01, 0.1, 1, 10, 100, 1000],
     '--Gadv' : ['True', 'False'],
     '--logging' : ['True'],
 }
@@ -72,6 +71,34 @@ launch_tasks(
         param_dict=PARAM_DICT,
         partition=PARTITION,
         qos=QOS_TYPE,
+)
+launch_tasks(
+    num_procs_on_gpu=NUM_PROCS_ON_GPU,
+    base_cmd=BASE_CMD,
+    param_dict=PARAM_DICT,
+    partition=PARTITION,
+    qos=QOS_TYPE,
+)
+launch_tasks(
+    num_procs_on_gpu=NUM_PROCS_ON_GPU,
+    base_cmd=BASE_CMD,
+    param_dict=PARAM_DICT,
+    partition=PARTITION,
+    qos=QOS_TYPE,
+)
+launch_tasks(
+    num_procs_on_gpu=NUM_PROCS_ON_GPU,
+    base_cmd=BASE_CMD,
+    param_dict=PARAM_DICT,
+    partition=PARTITION,
+    qos=QOS_TYPE,
+)
+launch_tasks(
+    num_procs_on_gpu=NUM_PROCS_ON_GPU,
+    base_cmd=BASE_CMD,
+    param_dict=PARAM_DICT,
+    partition=PARTITION,
+    qos=QOS_TYPE,
 )
 
 srun_gpuless_task(r"""bash -c 'tensorboard --host=$(hostname).mllab.snu.ac.kr --port=0 --logdir={}'""".format(TENSORBOARD_DIR))

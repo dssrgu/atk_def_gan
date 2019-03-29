@@ -1,6 +1,6 @@
 import torch.nn as nn
 import torch
-#import numpy as np
+import numpy as np
 import models
 import torch.nn.functional as F
 #import torchvision
@@ -15,11 +15,11 @@ class AdvGAN_Attack:
                  model,
                  model_num_labels,
                  image_nc,
-                 beta,
                  Gadv,
                  box_min,
                  box_max,
                  eps,
+                 pgd_iter,
                  models_path,
                  out_path,
                  model_name,
@@ -31,11 +31,11 @@ class AdvGAN_Attack:
         self.model = model
         self.input_nc = image_nc
         self.output_nc = output_nc
-        self.beta = beta
         self.Gadv = Gadv
         self.box_min = box_min
         self.box_max = box_max
         self.eps = eps
+        self.pgd_iter = pgd_iter
         self.models_path = models_path
         self.out_path = out_path
         self.model_name = model_name
@@ -48,6 +48,7 @@ class AdvGAN_Attack:
         self.advG = models.Generator(image_nc).to(device)
         self.defG = models.Generator(image_nc, adv=False).to(device)
         self.recG = models.Generator(image_nc, adv=False).to(device)
+        self.pgd = PGD(self.model, self.E, self.defG, self.device)
 
         # initialize all weights
         self.E.apply(weights_init)
@@ -215,19 +216,25 @@ class AdvGAN_Attack:
         self.E.eval()
         self.defG.eval()
 
-        pgd = PGD(self.model, self.E, self.defG, self.device)
-        pgd_img = pgd.perturb(x, labels)
-        def_pgd_noise = self.defG(self.E(pgd_img))
-        def_pgd_img = def_pgd_noise * self.eps + pgd_img
+        pgd_acc_li = []
 
-        pred = torch.argmax(self.model(def_pgd_img), 1)
-        num_correct = torch.sum(pred == labels, 0)
-        pgd_acc = num_correct.item()/len(labels)
+        for iter in self.pgd_iter:
+
+            pgd_img = self.pgd.perturb(x, labels, iter=iter)
+
+            for _ in range(iter):
+                pgd_img = self.defG(self.E(pgd_img)) + pgd_img
+
+            pred = torch.argmax(self.model(pgd_img), 1)
+            num_correct = torch.sum(pred == labels, 0)
+            pgd_acc = num_correct.item()/len(labels)
+
+            pgd_acc_li.append(pgd_acc)
 
         self.E.train()
         self.defG.train()
 
-        return pgd_acc, torch.sum(loss_E).item(), torch.sum(loss_advG).item(), \
+        return pgd_acc_li, torch.sum(loss_E).item(), torch.sum(loss_advG).item(), \
                torch.sum(loss_defG).item(), torch.sum(loss_recG).item()
 
     # main training function
@@ -257,25 +264,30 @@ class AdvGAN_Attack:
             loss_advG_sum = 0
             loss_defG_sum = 0
             loss_recG_sum = 0
-            pgd_acc_sum = 0
+            pgd_acc_li_sum = []
 
             for i, data in enumerate(train_dataloader, start=0):
                 images, labels = data
                 images, labels = images.to(self.device), labels.to(self.device)
 
-                pgd_acc_batch, loss_E_batch, loss_advG_batch, loss_defG_batch, loss_recG_batch = \
+                pgd_acc_li_batch, loss_E_batch, loss_advG_batch, loss_defG_batch, loss_recG_batch = \
                     self.train_batch(images, labels)
                 loss_E_sum += loss_E_batch
                 loss_advG_sum += loss_advG_batch
                 loss_defG_sum += loss_defG_batch
                 loss_recG_sum += loss_recG_batch
-                pgd_acc_sum += pgd_acc_batch
+                pgd_acc_li_sum.append(pgd_acc_li_batch)
 
             # print statistics
             num_batch = len(train_dataloader)
-            print("epoch %d:\nloss_E: %.5f, loss_advG: %.5f, loss_defG: %.5f, loss_recG: %.5f, pgd_acc: %.5f\n" %
+            print("epoch %d:\nloss_E: %.5f, loss_advG: %.5f, loss_defG: %.5f, loss_recG: %.5f\n" %
                   (epoch, loss_E_sum/num_batch, loss_advG_sum/num_batch,
-                   loss_defG_sum/num_batch, loss_recG_sum/num_batch, pgd_acc_sum/num_batch))
+                   loss_defG_sum/num_batch, loss_recG_sum/num_batch))
+
+            pgd_acc_li = np.mean(np.array(pgd_acc_li_sum))
+            for idx in range(len(pgd_acc_li)):
+                print("pgd iter %d acc.: %.5f" % (self.pgd_iter[idx], pgd_acc_li[idx]), end='')
+            print()
 
             # write to tensorboard
             if self.writer:
@@ -283,7 +295,8 @@ class AdvGAN_Attack:
                 self.writer.add_scalar('loss_advG', loss_advG_sum/num_batch, epoch)
                 self.writer.add_scalar('loss_defG', loss_defG_sum/num_batch, epoch)
                 self.writer.add_scalar('loss_recG', loss_recG_sum/num_batch, epoch)
-                self.writer.add_scalar('pgd_acc', pgd_acc_sum/num_batch, epoch)
+                for idx in range(len(pgd_acc_li)):
+                    self.writer.add_scalar('pgd_acc_%d' % (self.pgd_iter[idx]), pgd_acc_li[idx], epoch)
 
             # save generator
             if epoch%20==0:

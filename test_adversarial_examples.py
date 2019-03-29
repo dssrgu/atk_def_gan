@@ -77,7 +77,7 @@ def tester(dataset, dataloader, device, target_model, E, defG, advG, recG, eps, 
         def_pgd_img = def_pgd_noise * eps + pgd_img
         def_pgd_img = torch.clamp(def_pgd_img, 0, 1)
 
-        pgd_nat_img = pgd.perturb(test_img, test_label, base=True)
+        pgd_nat_img = pgd.perturb(test_img, test_label, iter=0)
 
         # calculate acc.
         pred = torch.argmax(target_model(test_img), 1)
