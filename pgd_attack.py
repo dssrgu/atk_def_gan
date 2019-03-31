@@ -13,7 +13,7 @@ class PGD(object):
         self.step_size = step_size
         self.loss_fn = nn.CrossEntropyLoss()
 
-    def perturb(self, X_ori, y, it=0):
+    def perturb(self, X_ori, y, itr=0):
 
         X_nat = np.copy(X_ori)
         X = np.copy(X_nat)
@@ -22,11 +22,11 @@ class PGD(object):
             X_var = torch.from_numpy(X).to(self.device)
             X_var.requires_grad = True
 
-            if it > 0:
+            if itr > 0:
                 X_def = self.defG(self.enc(X_var)) + X_var
                 X_def = torch.clamp(X_def, 0, 1)
 
-                for _ in range(it-1):
+                for _ in range(itr-1):
                     X_def = self.defG(self.enc(X_def)) + X_def
                     X_def = torch.clamp(X_def, 0, 1)
                 

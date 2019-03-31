@@ -15,6 +15,7 @@ class AdvGAN_Attack:
                  model,
                  model_num_labels,
                  image_nc,
+                 recadv,
                  Gadv,
                  box_min,
                  box_max,
@@ -31,6 +32,7 @@ class AdvGAN_Attack:
         self.model = model
         self.input_nc = image_nc
         self.output_nc = output_nc
+        self.recadv = recadv
         self.Gadv = Gadv
         self.box_min = box_min
         self.box_max = box_max
@@ -131,7 +133,9 @@ class AdvGAN_Attack:
 
             # total E loss
 
-            loss_E = loss_rec + loss_rec_adv
+            loss_E = loss_rec
+            if self.recadv:
+                loss_E += loss_rec_adv
 
             loss_E.backward()
 
@@ -154,10 +158,9 @@ class AdvGAN_Attack:
             loss_def_adv = -F.cross_entropy(logits_def_adv, labels)
 
             # backprop
+            loss_advG = loss_def_adv
             if self.Gadv:
-                loss_advG = loss_adv + loss_def_adv
-            else:
-                loss_advG = loss_def_adv
+                loss_advG += loss_adv
 
             loss_advG.backward()
 
@@ -205,7 +208,9 @@ class AdvGAN_Attack:
 
             # total recG loss
 
-            loss_recG = loss_rec + loss_rec_adv
+            loss_recG = loss_rec
+            if self.recadv:
+                loss_recG += loss_rec_adv
 
             loss_recG.backward()
 
@@ -218,11 +223,11 @@ class AdvGAN_Attack:
 
         pgd_acc_li = []
 
-        for it in self.pgd_iter:
+        for itr in self.pgd_iter:
 
-            pgd_img = self.pgd.perturb(x, labels, it=it)
+            pgd_img = self.pgd.perturb(x, labels, itr=itr)
 
-            for _ in range(it):
+            for _ in range(itr):
                 pgd_img = self.defG(self.E(pgd_img)) + pgd_img
                 pgd_img = torch.clamp(pgd_img, self.box_min, self.box_max)
 
@@ -287,8 +292,8 @@ class AdvGAN_Attack:
 
             pgd_acc_li_sum = np.mean(np.array(pgd_acc_li_sum), axis=0)
             for idx in range(len(self.pgd_iter)):
-                print("pgd iter %d acc.: %.5f" % (self.pgd_iter[idx], pgd_acc_li_sum[idx]), end=' ')
-            print("\n")
+                print("pgd iter %d acc.: %.5f" % (self.pgd_iter[idx], pgd_acc_li_sum[idx]))
+            print()
 
             # write to tensorboard
             if self.writer:

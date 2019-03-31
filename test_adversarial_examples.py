@@ -35,10 +35,12 @@ def tester(dataset, dataloader, device, target_model, E, defG, advG, recG, eps, 
     test_img_full = []
     adv_img_full = []
     pgd_img_full = []
+    pgd_nat_img_full = []
     def_img_full = []
     def_adv_img_full = []
     def_pgd_img_full = []
     rec_img_full = []
+    rec_adv_img_full = []
 
     pred_adv_full = []
     pred_pgd_full = []
@@ -71,13 +73,16 @@ def tester(dataset, dataloader, device, target_model, E, defG, advG, recG, eps, 
         def_img = def_noise + test_img
         def_img = torch.clamp(def_img, 0, 1)
 
-        pgd_img = pgd.perturb(test_img, test_label)
+        pgd_img = pgd.perturb(test_img, test_label, itr=1)
 
         def_pgd_noise = defG(E(pgd_img))
-        def_pgd_img = def_pgd_noise * eps + pgd_img
+        def_pgd_img = def_pgd_noise + pgd_img
         def_pgd_img = torch.clamp(def_pgd_img, 0, 1)
 
-        pgd_nat_img = pgd.perturb(test_img, test_label, iter=0)
+        pgd_nat_img = pgd.perturb(test_img, test_label, itr=0)
+
+        rec_adv_img = recG(E(adv_img))
+        rec_adv_img = torch.clamp(rec_adv_img, 0, 1)
 
         # calculate acc.
         pred = torch.argmax(target_model(test_img), 1)
@@ -105,10 +110,12 @@ def tester(dataset, dataloader, device, target_model, E, defG, advG, recG, eps, 
             test_img_full.append(test_img)
             rec_img_full.append(rec_img)
             adv_img_full.append(adv_img)
-            pgd_img_full.append(pgd_nat_img)
+            pgd_img_full.append(pgd_img)
+            pgd_nat_img_full.append(pgd_nat_img)
             def_img_full.append(def_img)
             def_adv_img_full.append(def_adv_img)
             def_pgd_img_full.append(def_pgd_img)
+            rec_adv_img_full.append(rec_adv_img)
 
     print('num_correct(nat): ', num_correct.item())
     print('num_correct(rec): ', num_correct_rec.item())
@@ -164,17 +171,21 @@ def tester(dataset, dataloader, device, target_model, E, defG, advG, recG, eps, 
         rec_img_full = torch.cat(rec_img_full)
         adv_img_full = torch.cat(adv_img_full)
         pgd_img_full = torch.cat(pgd_img_full)
+        pgd_nat_img_full = torch.cat(pgd_nat_img_full)
         def_img_full = torch.cat(def_img_full)
         def_adv_img_full = torch.cat(def_adv_img_full)
         def_pgd_img_full = torch.cat(def_pgd_img_full)
+        rec_adv_img_full = torch.cat(rec_adv_img_full)
 
         test_grid = make_grid(test_img_full)
         rec_grid = make_grid(rec_img_full)
         adv_grid = make_grid(adv_img_full)
         pgd_grid = make_grid(pgd_img_full)
+        pgd_nat_grid = make_grid(pgd_nat_img_full)
         def_grid = make_grid(def_img_full)
         def_adv_grid = make_grid(def_adv_img_full)
         def_pgd_grid = make_grid(def_pgd_img_full)
+        rec_adv_grid = make_grid(rec_adv_img_full)
 
         if not os.path.exists(out_path + model_name):
             os.makedirs(out_path + model_name)
@@ -183,9 +194,11 @@ def tester(dataset, dataloader, device, target_model, E, defG, advG, recG, eps, 
         save_image(rec_grid, out_path + model_name + 'rec_grid.png')
         save_image(adv_grid, out_path + model_name + 'adv_grid.png')
         save_image(pgd_grid, out_path + model_name + 'pgd_grid.png')
+        save_image(pgd_nat_grid, out_path + model_name + 'pgd_nat_grid.png')
         save_image(def_grid, out_path + model_name + 'def_grid.png')
         save_image(def_adv_grid, out_path + model_name + 'def_adv_grid.png')
         save_image(def_pgd_grid, out_path + model_name + 'def_pgd_grid.png')
+        save_image(rec_adv_grid, out_path + model_name + 'rec_adv_grid.png')
         
         print('images saved')
 
@@ -213,19 +226,20 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
 
+    parser.add_argument('--log_base_dir', type=str)
     parser.add_argument('--epoch', default=100, type=int)
-    parser.add_argument('--beta', default=1, type=float)
+    parser.add_argument('--recadv', default='True', type=boolean_string)
     parser.add_argument('--Gadv', default='True', type=boolean_string)
+    parser.add_argument('--seeds', default=0, type=int)
     parser.add_argument('--eps', default=0.3, type=float)
     parser.add_argument('--parameters_count', action='store_true')
     parser.add_argument('--labels_count', action='store_true')
-    parser.add_argument('--log_base_dir', type=str)
 
     args = parser.parse_args()
     for arg in vars(args):
         print(arg, getattr(args, arg))
 
-    model_name = 'beta{}'.format(args.beta) + ('_recadv') + ('_Gadv' if args.Gadv else '') + '/'
+    model_name = ('recadv_' if args.recadv else '') + ('Gadv_' if args.Gadv else '') + '{}'.format(args.seeds) + '/'
 
     en_input_nc = image_nc
     # Define what device we are using

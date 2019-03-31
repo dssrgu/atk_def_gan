@@ -23,7 +23,9 @@ out_path = './out/'
 parser = argparse.ArgumentParser()
 
 parser.add_argument('--log_base_dir', default='mnist/data', type=str)
+parser.add_argument('--recadv', default='True', type=boolean_string)
 parser.add_argument('--Gadv', default='True', type=boolean_string)
+parser.add_argument('--seeds', default=0, type=int)
 parser.add_argument('--logging', default='False', type=boolean_string)
 parser.add_argument('--epochs', default=100, type=int)
 
@@ -31,7 +33,7 @@ args = parser.parse_args()
 for arg in vars(args):
     print(arg, getattr(args, arg))
 
-model_name = ('recadv') + ('_Gadv' if args.Gadv else '') + '/'
+model_name = ('recadv_' if args.recadv else '') + ('Gadv_' if args.Gadv else '') + '{}'.format(args.seeds) + '/'
 
 # tensorboard writer
 if args.logging:
@@ -57,6 +59,7 @@ advGAN = AdvGAN_Attack(device,
                        targeted_model,
                        model_num_labels,
                        image_nc,
+                       args.recadv,
                        args.Gadv,
                        BOX_MIN,
                        BOX_MAX,

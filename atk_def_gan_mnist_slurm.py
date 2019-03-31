@@ -9,6 +9,7 @@ NUM_PROCS_ON_GPU = 1
 PARTITION = 'all'  # 'mllab', 'all', or 'dept'
 
 PYTHON_FILE = 'main.py'
+#PYTHON_FILE = 'test_adversarial_examples.py'
 IMPORT_PATHS = ['.']
 TENSORBOARD_DIR = 'mnist/data'
 COMMON_PARAMS = '--log_base_dir {}'.format(TENSORBOARD_DIR)
@@ -18,6 +19,8 @@ QOS_TYPE = 'normal'  # 'normal' or 'highprio'
 
 PARAM_DICT = {
     '--Gadv' : ['True', 'False'],
+    '--recadv' : ['True', 'False'],
+    '--seeds' : [0, 1, 2, 3, 4],
     '--logging' : ['True'],
 }
 
@@ -71,34 +74,6 @@ launch_tasks(
         param_dict=PARAM_DICT,
         partition=PARTITION,
         qos=QOS_TYPE,
-)
-launch_tasks(
-    num_procs_on_gpu=NUM_PROCS_ON_GPU,
-    base_cmd=BASE_CMD,
-    param_dict=PARAM_DICT,
-    partition=PARTITION,
-    qos=QOS_TYPE,
-)
-launch_tasks(
-    num_procs_on_gpu=NUM_PROCS_ON_GPU,
-    base_cmd=BASE_CMD,
-    param_dict=PARAM_DICT,
-    partition=PARTITION,
-    qos=QOS_TYPE,
-)
-launch_tasks(
-    num_procs_on_gpu=NUM_PROCS_ON_GPU,
-    base_cmd=BASE_CMD,
-    param_dict=PARAM_DICT,
-    partition=PARTITION,
-    qos=QOS_TYPE,
-)
-launch_tasks(
-    num_procs_on_gpu=NUM_PROCS_ON_GPU,
-    base_cmd=BASE_CMD,
-    param_dict=PARAM_DICT,
-    partition=PARTITION,
-    qos=QOS_TYPE,
 )
 
 srun_gpuless_task(r"""bash -c 'tensorboard --host=$(hostname).mllab.snu.ac.kr --port=0 --logdir={}'""".format(TENSORBOARD_DIR))
