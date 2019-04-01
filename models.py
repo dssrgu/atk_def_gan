@@ -7,29 +7,20 @@ import torch.nn.functional as F
 class MNIST_target_net(nn.Module):
     def __init__(self):
         super(MNIST_target_net, self).__init__()
-        self.conv1 = nn.Conv2d(1, 32, kernel_size=3)
-        self.conv2 = nn.Conv2d(32, 32, kernel_size=3)
-        self.conv3 = nn.Conv2d(32, 64, kernel_size=3)
-        self.conv4 = nn.Conv2d(64, 64, kernel_size=3)
+        self.conv1 = nn.Conv2d(1, 32, kernel_size=5, padding=2)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=5, padding=2)
 
-        self.fc1 = nn.Linear(64*4*4, 200)
-        self.fc2 = nn.Linear(200, 200)
-        self.logits = nn.Linear(200, 10)
+        self.fc1 = nn.Linear(64*7*7, 10)
 
     def forward(self, x):
         assert not torch.any(x > 1)
         assert not torch.any(x < 0)
         x = F.relu(self.conv1(x))
+        x = F.max_pool2d(x, 2)
         x = F.relu(self.conv2(x))
         x = F.max_pool2d(x, 2)
-        x = F.relu(self.conv3(x))
-        x = F.relu(self.conv4(x))
-        x = F.max_pool2d(x, 2)
-        x = x.view(-1, 64*4*4)
-        x = F.relu(self.fc1(x))
-        x = F.dropout(x, 0.5)
-        x = F.relu(self.fc2(x))
-        x = self.logits(x)
+        x = x.view(-1, 64*7*7)
+        x = self.fc1(x)
         return x
 
 
@@ -69,44 +60,25 @@ class Generator(nn.Module):
 
         self.adv = adv
 
-        bottle_neck_lis = [ResnetBlock(32),
-                           ResnetBlock(32),
-                           ]
-
-        decoder_nc = 32
-
         decoder_lis = [
-            nn.ConvTranspose2d(decoder_nc, 16, kernel_size=3, stride=2, padding=0, bias=False),
-            nn.InstanceNorm2d(16),
+            nn.ConvTranspose2d(128, 64, kernel_size=5, stride=2, padding=0, bias=False),
+            nn.ZeroPad2d((1, 2, 1, 2)),
+            nn.BatchNorm2d(64),
             nn.ReLU(),
-            # state size. 16 x 11 x 11
-            nn.ConvTranspose2d(16, 8, kernel_size=3, stride=2, padding=0, bias=False),
-            nn.InstanceNorm2d(8),
-            nn.ReLU(),
-            # state size. 8 x 23 x 23
-            nn.ConvTranspose2d(8, image_nc, kernel_size=6, stride=1, padding=0, bias=False),
-            # state size. image_nc x 28 x 28
+            nn.ConvTranspose2d(64, 1, kernel_size=5, stride=2, padding=0, bias=False),
+            nn.ZeroPad2d((1, 2, 1, 2)),
+            #nn.BatchNorm2d(1),
+            #nn.ReLU(),
         ]
 
         tanh_lis = [
             nn.Tanh(),
         ]
 
-        self.bottle_neck = nn.Sequential(*bottle_neck_lis)
         self.decoder = nn.Sequential(*decoder_lis)
         self.tanh = nn.Sequential(*tanh_lis)
 
     def forward(self, x):
-
-        x = self.bottle_neck(x)
-
-        '''
-        if self.adv:
-            v = self.vec_encoder_lis(v)
-            x = self.bottle_neck(x) + v
-        else:
-            x = self.bottle_neck(x)
-        '''
 
         x = self.decoder(x)
 
@@ -124,30 +96,18 @@ class Encoder(nn.Module):
 
         encoder_lis = [
             # MNIST:1*28*28
-            nn.Conv2d(en_input_nc, 8, kernel_size=3, stride=1, padding=0, bias=True),
-            nn.InstanceNorm2d(8),
+            nn.Conv2d(en_input_nc, 64, kernel_size=5, stride=2, padding=2, bias=True),
+            nn.BatchNorm2d(64),
             nn.ReLU(),
-            # 8*26*26
-            nn.Conv2d(8, 16, kernel_size=3, stride=2, padding=0, bias=True),
-            nn.InstanceNorm2d(16),
+            nn.Conv2d(64, 128, kernel_size=5, stride=2, padding=2, bias=True),
+            nn.BatchNorm2d(128),
             nn.ReLU(),
-            # 16*12*12
-            nn.Conv2d(16, 32, kernel_size=3, stride=2, padding=0, bias=True),
-            nn.InstanceNorm2d(32),
-            nn.ReLU(),
-            # 32*5*5
         ]
 
-        bottle_neck_lis = [ResnetBlock(32),
-                           ResnetBlock(32),
-                           ]
-
         self.encoder = nn.Sequential(*encoder_lis)
-        self.bottle_neck = nn.Sequential(*bottle_neck_lis)
 
     def forward(self, x):
         x = self.encoder(x)
-        x = self.bottle_neck(x)
         return x
 
 
