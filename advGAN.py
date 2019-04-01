@@ -98,6 +98,7 @@ class AdvGAN_Attack:
 
             # clear grad
             self.optimizer_E.zero_grad()
+            self.optimizer_defG.zero_grad()
 
             _, def_adv_images, def_images = self.gen_images(x, labels)
 
@@ -109,32 +110,11 @@ class AdvGAN_Attack:
             loss_def = F.cross_entropy(logits_def, labels)
 
             # backprop
-            loss_E = loss_def_adv + loss_def
+            loss = loss_def_adv + loss_def
 
-            loss_E.backward()
+            loss.backward()
 
             self.optimizer_E.step()
-
-        # optimize defG
-        for i in range(1):
-
-            # clear grad
-            self.optimizer_defG.zero_grad()
-
-            _, def_adv_images, def_images = self.gen_images(x, labels)
-
-            # def(adv) loss
-            logits_def_adv = self.model(def_adv_images)
-            loss_def_adv = F.cross_entropy(logits_def_adv, labels)
-
-            # def(nat) loss
-            logits_def = self.model(def_images)
-            loss_def = F.cross_entropy(logits_def, labels)
-
-            loss_defG = loss_def_adv + loss_def
-
-            loss_defG.backward()
-
             self.optimizer_defG.step()
 
         # pgd performance check
@@ -161,8 +141,7 @@ class AdvGAN_Attack:
         self.E.train()
         self.defG.train()
 
-        return pgd_acc_li, torch.sum(loss_E).item(), \
-               torch.sum(loss_defG).item(),
+        return pgd_acc_li, torch.sum(loss).item(), \
 
     # main training function
     def train(self, train_dataloader, epochs):
@@ -179,25 +158,23 @@ class AdvGAN_Attack:
                 self.optimizer_defG = torch.optim.Adam(self.defG.parameters(),
                                                        lr=self.init_lr/100)
 
-            loss_E_sum = 0
-            loss_defG_sum = 0
+            loss_sum = 0
             pgd_acc_li_sum = []
 
             for i, data in enumerate(train_dataloader, start=0):
                 images, labels = data
                 images, labels = images.to(self.device), labels.to(self.device)
 
-                pgd_acc_li_batch, loss_E_batch, loss_defG_batch = \
+                pgd_acc_li_batch, loss_batch = \
                     self.train_batch(images, labels)
-                loss_E_sum += loss_E_batch
-                loss_defG_sum += loss_defG_batch
+                loss_sum += loss_batch
                 pgd_acc_li_sum.append(pgd_acc_li_batch)
 
             # print statistics
             num_batch = len(train_dataloader)
             print("epoch %d:\nloss_E: %.5f, loss_defG: %.5f" %
-                  (epoch, loss_E_sum/num_batch,
-                   loss_defG_sum/num_batch))
+                  (epoch, loss_sum/num_batch,
+                   loss_sum/num_batch))
 
             pgd_acc_li_sum = np.mean(np.array(pgd_acc_li_sum), axis=0)
             for idx in range(len(self.pgd_iter)):
@@ -206,8 +183,7 @@ class AdvGAN_Attack:
 
             # write to tensorboard
             if self.writer:
-                self.writer.add_scalar('loss_E', loss_E_sum/num_batch, epoch)
-                self.writer.add_scalar('loss_defG', loss_defG_sum/num_batch, epoch)
+                self.writer.add_scalar('loss', loss_sum/num_batch, epoch)
                 for idx in range(len(self.pgd_iter)):
                     self.writer.add_scalar('pgd_acc_%d' % (self.pgd_iter[idx]), pgd_acc_li_sum[idx], epoch)
 

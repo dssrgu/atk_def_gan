@@ -18,9 +18,7 @@ LABEL = 'test_exp'
 QOS_TYPE = 'normal'  # 'normal' or 'highprio'
 
 PARAM_DICT = {
-    '--Gadv' : ['True', 'False'],
-    '--recadv' : ['True', 'False'],
-    '--seeds' : [0, 1, 2, 3, 4],
+    '--seeds' : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
     '--logging' : ['True'],
 }
 
