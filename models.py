@@ -61,12 +61,10 @@ class Generator(nn.Module):
         self.adv = adv
 
         decoder_lis = [
-            nn.ConvTranspose2d(128, 64, kernel_size=5, stride=2, padding=0, bias=False),
-            nn.ZeroPad2d((1, 2, 1, 2)),
+            nn.ConvTranspose2d(128, 64, kernel_size=5, stride=2, padding=2, output_padding=1, bias=False),
             nn.BatchNorm2d(64),
             nn.ReLU(),
-            nn.ConvTranspose2d(64, 1, kernel_size=5, stride=2, padding=0, bias=False),
-            nn.ZeroPad2d((1, 2, 1, 2)),
+            nn.ConvTranspose2d(64, 1, kernel_size=5, stride=2, padding=2, output_padding=1, bias=False),
             #nn.BatchNorm2d(1),
             #nn.ReLU(),
         ]
