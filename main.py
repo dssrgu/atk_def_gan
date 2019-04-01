@@ -23,8 +23,6 @@ out_path = './out/'
 parser = argparse.ArgumentParser()
 
 parser.add_argument('--log_base_dir', default='mnist/data', type=str)
-parser.add_argument('--beta', default=1, type=float)
-parser.add_argument('--Gadv', default='True', type=boolean_string)
 parser.add_argument('--seeds', default=0, type=int)
 parser.add_argument('--logging', default='False', type=boolean_string)
 parser.add_argument('--epochs', default=100, type=int)
@@ -33,7 +31,7 @@ args = parser.parse_args()
 for arg in vars(args):
     print(arg, getattr(args, arg))
 
-model_name = ('beta_%.3f' % args.beta) + ('Gadv_' if args.Gadv else '') + '{}'.format(args.seeds) + '/'
+model_name = ('pgd_') + '{}'.format(args.seeds) + '/'
 
 # tensorboard writer
 if args.logging:
@@ -59,8 +57,6 @@ advGAN = AdvGAN_Attack(device,
                        targeted_model,
                        model_num_labels,
                        image_nc,
-                       args.beta,
-                       args.Gadv,
                        BOX_MIN,
                        BOX_MAX,
                        eps,
