@@ -71,6 +71,7 @@ class AdvGAN_Attack:
 
         # make adv image
         adv_images = self.advG(self.E(x)) * self.eps + x
+        adv_images = torch.clamp(adv_images, self.box_min, self.box_max)
 
         # make def(adv) image
         def_adv_images = self.defG(self.E(adv_images)) + adv_images
@@ -88,7 +89,7 @@ class AdvGAN_Attack:
         self.E.eval()
         self.defG.eval()
 
-        test_full(self.device, self.model, self.E, self.defG, advG, self.eps,
+        test_full(self.device, self.model, self.E, self.defG, self.advG, self.eps,
                   self.out_path, self.model_name, label_count=True, save_img=True)
 
         self.E.train()
