@@ -31,7 +31,7 @@ args = parser.parse_args()
 for arg in vars(args):
     print(arg, getattr(args, arg))
 
-model_name = ('pgd_') + '{}'.format(args.seeds) + '/'
+model_name = '{}'.format(args.seeds) + '/'
 
 # tensorboard writer
 if args.logging:

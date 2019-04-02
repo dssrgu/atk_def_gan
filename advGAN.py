@@ -45,16 +45,20 @@ class AdvGAN_Attack:
         self.en_input_nc = image_nc
         self.E = models.Encoder(self.en_input_nc).to(device)
         self.defG = models.Generator(image_nc, adv=False).to(device)
+        self.advG = models.Generator(image_nc, adv=True).to(device)
         self.pgd = PGD(self.model, self.E, self.defG, self.device, self.eps)
 
         # initialize all weights
         self.E.apply(weights_init)
         self.defG.apply(weights_init)
+        self.advG.apply(weights_init)
 
         # initialize optimizers
         self.optimizer_E = torch.optim.Adam(self.E.parameters(),
                                             lr=self.init_lr)
         self.optimizer_defG = torch.optim.Adam(self.defG.parameters(),
+                                               lr=self.init_lr)
+        self.optimizer_advG = torch.optim.Adam(self.advG.parameters(),
                                                lr=self.init_lr)
 
         if not os.path.exists(models_path):
@@ -66,7 +70,7 @@ class AdvGAN_Attack:
     def gen_images(self, x, labels):
 
         # make adv image
-        adv_images = self.pgd.perturb(x, labels, itr=1)
+        adv_images = self.advG(self.E(x)) * self.eps + x
 
         # make def(adv) image
         def_adv_images = self.defG(self.E(adv_images)) + adv_images
@@ -84,7 +88,7 @@ class AdvGAN_Attack:
         self.E.eval()
         self.defG.eval()
 
-        test_full(self.device, self.model, self.E, self.defG, self.eps,
+        test_full(self.device, self.model, self.E, self.defG, advG, self.eps,
                   self.out_path, self.model_name, label_count=True, save_img=True)
 
         self.E.train()
@@ -98,6 +102,50 @@ class AdvGAN_Attack:
 
             # clear grad
             self.optimizer_E.zero_grad()
+
+            _, def_adv_images, def_images = self.gen_images(x, labels)
+
+            # def(adv) loss
+            logits_def_adv = self.model(def_adv_images)
+            loss_def_adv = F.cross_entropy(logits_def_adv, labels)
+
+            # def loss
+            logits_def = self.model(def_images)
+            loss_def = F.cross_entropy(logits_def, labels)
+
+            # backprop
+            loss_E = loss_def_adv + loss_def
+
+            loss_E.backward()
+
+            self.optimizer_E.step()
+
+        # optimize G
+        for i in range(1):
+
+            # clear grad
+            self.optimizer_advG.zero_grad()
+            adv_images, def_adv_images, _ = self.gen_images(x, labels)
+
+            # adv loss
+            logits_adv = self.model(adv_images)
+            loss_adv = -F.cross_entropy(logits_adv, labels)
+
+            # def(adv) loss
+            logits_def_adv = self.model(def_adv_images)
+            loss_def_adv = -F.cross_entropy(logits_adv, labels)
+
+            # backprop
+            loss_advG = loss_adv + loss_def_adv
+
+            loss_advG.backward()
+
+            self.optimizer_advG.step()
+
+        # optimize defG
+        for i in range(1):
+
+            # clear grad
             self.optimizer_defG.zero_grad()
 
             _, def_adv_images, def_images = self.gen_images(x, labels)
@@ -106,15 +154,15 @@ class AdvGAN_Attack:
             logits_def_adv = self.model(def_adv_images)
             loss_def_adv = F.cross_entropy(logits_def_adv, labels)
 
+            # def loss
             logits_def = self.model(def_images)
             loss_def = F.cross_entropy(logits_def, labels)
 
             # backprop
-            loss = loss_def_adv + loss_def
+            loss_defG = loss_def_adv + loss_def
 
-            loss.backward()
+            loss_defG.backward()
 
-            self.optimizer_E.step()
             self.optimizer_defG.step()
 
         # pgd performance check
@@ -141,7 +189,7 @@ class AdvGAN_Attack:
         self.E.train()
         self.defG.train()
 
-        return pgd_acc_li, torch.sum(loss).item(), \
+        return pgd_acc_li, torch.sum(loss_E).item(), torch.sum(loss_advG).item(), torch.sum(loss_defG).item() \
 
     # main training function
     def train(self, train_dataloader, epochs):
@@ -152,29 +200,36 @@ class AdvGAN_Attack:
                                                     lr=self.init_lr/10)
                 self.optimizer_defG = torch.optim.Adam(self.defG.parameters(),
                                                        lr=self.init_lr/10)
+                self.optimizer_advG = torch.optim.Adam(self.advG.parameters(),
+                                                       lr=self.init_lr/10)
             if epoch == 80:
                 self.optimizer_E = torch.optim.Adam(self.E.parameters(),
                                                     lr=self.init_lr/100)
                 self.optimizer_defG = torch.optim.Adam(self.defG.parameters(),
                                                        lr=self.init_lr/100)
+                self.optimizer_advG = torch.optim.Adam(self.advG.parameters(),
+                                                       lr=self.init_lr/100)
 
-            loss_sum = 0
+            loss_E_sum = 0
+            loss_defG_sum = 0
+            loss_advG_sum = 0
             pgd_acc_li_sum = []
 
             for i, data in enumerate(train_dataloader, start=0):
                 images, labels = data
                 images, labels = images.to(self.device), labels.to(self.device)
 
-                pgd_acc_li_batch, loss_batch = \
+                pgd_acc_li_batch, loss_E_batch, loss_advG_batch, loss_defG_batch = \
                     self.train_batch(images, labels)
-                loss_sum += loss_batch
+                loss_E_sum += loss_E_batch
+                loss_advG_sum += loss_advG_batch
+                loss_defG_sum += loss_defG_batch
                 pgd_acc_li_sum.append(pgd_acc_li_batch)
 
             # print statistics
             num_batch = len(train_dataloader)
-            print("epoch %d:\nloss_E: %.5f, loss_defG: %.5f" %
-                  (epoch, loss_sum/num_batch,
-                   loss_sum/num_batch))
+            print("epoch %d:\nloss_E: %.5f, loss_advG: %.5f, loss_defG: %.5f, loss_defG: %.5f" %
+                  (epoch, loss_E_sum/num_batch, loss_advG_sum/num_batch, loss_defG_sum/num_batch,))
 
             pgd_acc_li_sum = np.mean(np.array(pgd_acc_li_sum), axis=0)
             for idx in range(len(self.pgd_iter)):
@@ -183,15 +238,19 @@ class AdvGAN_Attack:
 
             # write to tensorboard
             if self.writer:
-                self.writer.add_scalar('loss', loss_sum/num_batch, epoch)
+                self.writer.add_scalar('loss_E', loss_E_sum/num_batch, epoch)
+                self.writer.add_scalar('loss_advG', loss_advG_sum/num_batch, epoch)
+                self.writer.add_scalar('loss_defG', loss_defG_sum/num_batch, epoch)
                 for idx in range(len(self.pgd_iter)):
                     self.writer.add_scalar('pgd_acc_%d' % (self.pgd_iter[idx]), pgd_acc_li_sum[idx], epoch)
 
             # save generator
             if epoch%20==0:
                 E_file_name = self.models_path + self.model_name + 'E_epoch_' + str(epoch) + '.pth'
+                advG_file_name = self.models_path + self.model_name + 'advG_epoch_' + str(epoch) + '.pth'
                 defG_file_name = self.models_path + self.model_name + 'defG_epoch_' + str(epoch) + '.pth'
                 torch.save(self.E.state_dict(), E_file_name)
+                torch.save(self.advG.state_dict(), advG_file_name)
                 torch.save(self.defG.state_dict(), defG_file_name)
 
         if self.writer:
