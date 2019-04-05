@@ -18,7 +18,8 @@ LABEL = 'test_exp'
 QOS_TYPE = 'normal'  # 'normal' or 'highprio'
 
 PARAM_DICT = {
-    '--seeds' : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+    '--seeds' : [i for i in range(1)],
+    '--enc_loss' : [(i+1) for i in range(26)],
     '--logging' : ['True'],
 }
 

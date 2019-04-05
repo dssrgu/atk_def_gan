@@ -200,6 +200,7 @@ if __name__ == '__main__':
     parser.add_argument('--log_base_dir', type=str)
     parser.add_argument('--epoch', default=100, type=int)
     parser.add_argument('--seeds', default=0, type=int)
+    parser.add_argument('--enc_loss', default=1, type=int)
     parser.add_argument('--eps', default=0.3, type=float)
     parser.add_argument('--parameters_count', action='store_true')
     parser.add_argument('--labels_count', action='store_true')
@@ -208,7 +209,7 @@ if __name__ == '__main__':
     for arg in vars(args):
         print(arg, getattr(args, arg))
 
-    model_name = '{}'.format(args.seeds) + '/'
+    model_name = 'enc_loss{}_'.format(args.enc_loss) + '_{}'.format(args.seeds) + '/'
 
     en_input_nc = image_nc
     # Define what device we are using

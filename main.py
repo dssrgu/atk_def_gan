@@ -24,6 +24,7 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument('--log_base_dir', default='mnist/data', type=str)
 parser.add_argument('--seeds', default=0, type=int)
+parser.add_argument('--enc_loss', default=1, type=int)
 parser.add_argument('--logging', default='False', type=boolean_string)
 parser.add_argument('--epochs', default=100, type=int)
 
@@ -31,7 +32,7 @@ args = parser.parse_args()
 for arg in vars(args):
     print(arg, getattr(args, arg))
 
-model_name = '{}'.format(args.seeds) + '/'
+model_name = 'enc_loss{}_'.format(args.enc_loss) + '_{}'.format(args.seeds) + '/'
 
 # tensorboard writer
 if args.logging:
@@ -57,6 +58,7 @@ advGAN = AdvGAN_Attack(device,
                        targeted_model,
                        model_num_labels,
                        image_nc,
+                       args.enc_loss,
                        BOX_MIN,
                        BOX_MAX,
                        eps,

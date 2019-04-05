@@ -16,6 +16,7 @@ class AdvGAN_Attack:
                  model,
                  model_num_labels,
                  image_nc,
+                 enc_loss,
                  box_min,
                  box_max,
                  eps,
@@ -31,6 +32,7 @@ class AdvGAN_Attack:
         self.model = model
         self.input_nc = image_nc
         self.output_nc = output_nc
+        self.enc_loss = enc_loss
         self.box_min = box_min
         self.box_max = box_max
         self.eps = eps
@@ -104,7 +106,11 @@ class AdvGAN_Attack:
             # clear grad
             self.optimizer_E.zero_grad()
 
-            _, def_adv_images, def_images = self.gen_images(x, labels)
+            adv_images, def_adv_images, def_images = self.gen_images(x, labels)
+
+            # adv loss
+            logits_adv = self.model(adv_images)
+            loss_adv = F.cross_entropy(logits_adv, labels)
 
             # def(adv) loss
             logits_def_adv = self.model(def_adv_images)
@@ -115,7 +121,25 @@ class AdvGAN_Attack:
             loss_def = F.cross_entropy(logits_def, labels)
 
             # backprop
-            loss_E = loss_def_adv + loss_def
+            loss_E = 0
+            
+            adv_seed = self.enc_loss%3
+            if adv_seed == 1:
+                loss_E += loss_adv
+            elif adv_seed == 2:
+                loss_E -= loss_adv
+
+            def_adv_seed = (self.enc_loss//3)%3
+            if def_adv_seed == 1:
+                loss_E += loss_def_adv
+            elif def_adv_seed == 2:
+                loss_E -= loss_def_adv
+
+            def_seed = (self.enc_loss//9)%3
+            if def_seed == 1:
+                loss_E += loss_def
+            elif def_seed == 2:
+                loss_E -= loss_def
 
             loss_E.backward()
 
@@ -229,7 +253,7 @@ class AdvGAN_Attack:
 
             # print statistics
             num_batch = len(train_dataloader)
-            print("epoch %d:\nloss_E: %.5f, loss_advG: %.5f, loss_defG: %.5f, loss_defG: %.5f" %
+            print("epoch %d:\nloss_E: %.5f, loss_advG: %.5f, loss_defG: %.5f" %
                   (epoch, loss_E_sum/num_batch, loss_advG_sum/num_batch, loss_defG_sum/num_batch,))
 
             pgd_acc_li_sum = np.mean(np.array(pgd_acc_li_sum), axis=0)
