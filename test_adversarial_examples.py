@@ -50,7 +50,7 @@ def tester(dataset, dataloader, device, target_model, E, defG, advG, eps, out_pa
 
         # prep images
         x_encoded = E(test_img)
-        z = torch.randn(x_encoded.shape[0], advG.z_dim, x_encoded.shape[1], x_encoded.shape[2]).to(device)
+        z = torch.randn(x_encoded.shape[0], advG.z_dim, x_encoded.shape[2], x_encoded.shape[3]).to(device)
 
         adv_noise = advG(x_encoded, z)
         adv_img = adv_noise * eps + test_img
@@ -213,7 +213,9 @@ if __name__ == '__main__':
     for arg in vars(args):
         print(arg, getattr(args, arg))
 
-    model_name = 'z_dim{}'.format(args.enc_loss) + '_{}'.format(args.seeds) + '/'
+    model_name = 'z_dim{}'.format(args.z_dim) + \
+        '_mine_weight{0:.1f}'.format(args.mine_weight) + \
+        '_{}'.format(args.seeds) + '/'
 
     en_input_nc = image_nc
     # Define what device we are using

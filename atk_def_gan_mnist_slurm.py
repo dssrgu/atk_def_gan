@@ -8,8 +8,8 @@ from sbatch_launcher import launch_tasks, srun_gpuless_task
 NUM_PROCS_ON_GPU = 1
 PARTITION = 'all'  # 'mllab', 'all', or 'dept'
 
-PYTHON_FILE = 'main.py'
-#PYTHON_FILE = 'test_adversarial_examples.py'
+#PYTHON_FILE = 'main.py'
+PYTHON_FILE = 'test_adversarial_examples.py'
 IMPORT_PATHS = ['.']
 TENSORBOARD_DIR = 'mnist/data'
 COMMON_PARAMS = '--log_base_dir {}'.format(TENSORBOARD_DIR)
@@ -21,7 +21,7 @@ PARAM_DICT = {
     '--seeds' : [i for i in range(1)],
     '--z_dim' : [1, 2, 4, 8, 16, 32, 64, 128],
     '--mine_weight' : [1, 10, 100, 1000, 10000],
-    '--logging' : ['True'],
+    #'--logging' : ['True'],
 }
 
 # If you don't use python, you can just assign the base command string to
@@ -76,5 +76,5 @@ launch_tasks(
         qos=QOS_TYPE,
 )
 
-srun_gpuless_task(r"""bash -c 'tensorboard --host=$(hostname).mllab.snu.ac.kr --port=0 --logdir={}'""".format(TENSORBOARD_DIR))
+#srun_gpuless_task(r"""bash -c 'tensorboard --host=$(hostname).mllab.snu.ac.kr --port=0 --logdir={}'""".format(TENSORBOARD_DIR))
 
