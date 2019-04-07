@@ -121,7 +121,7 @@ class AdvGAN_Attack:
 
             # def(adv) loss
             logits_def_adv = self.model(def_adv_images)
-            loss_def_adv = F.cross_entropy(logits_def_adv, labels)
+            loss_def_adv = F.cross_entropy(logits_def_adv, labels) + F.cross_entropy(logits_def_adv, target_labels)
 
             # def(nat) loss
             logits_def = self.model(def_images)
@@ -243,7 +243,7 @@ class AdvGAN_Attack:
 
             # print statistics
             num_batch = len(train_dataloader)
-            print("epoch %d:\nloss_E: %.5f, loss_advG: %.5f, loss_defG: %.5f, loss_mine: %.5f" %
+            print("epoch %d:\nloss_E: %.5f, loss_advG: %.5f, loss_defG: %.5f" %
                   (epoch, loss_E_sum/num_batch, loss_advG_sum/num_batch,
                    loss_defG_sum/num_batch))
 
