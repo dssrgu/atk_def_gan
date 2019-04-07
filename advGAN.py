@@ -162,7 +162,7 @@ class AdvGAN_Attack:
             # clear grad
             self.optimizer_defG.zero_grad()
 
-            _, def_adv_images, def_images, _, _ = self.gen_images(x, labels)
+            _, def_adv_images, def_images, _ = self.gen_images(x, labels)
 
             # def(adv) loss
             logits_def_adv = self.model(def_adv_images)
