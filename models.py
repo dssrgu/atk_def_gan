@@ -85,9 +85,6 @@ class Generator(nn.Module):
 
     def forward(self, x, z=None):
 
-        if self.adv:
-            x = torch.cat([x, z], dim=1)
-
         x = self.decoder(x)
 
         if self.adv:
