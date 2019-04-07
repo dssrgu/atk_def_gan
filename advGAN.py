@@ -163,7 +163,7 @@ class AdvGAN_Attack:
 
             # backprop
             loss_advG = (-loss_def_adv)
-            loss_advG += self.mine_weight * loss_mine
+            #loss_advG += self.mine_weight * loss_mine
 
             loss_advG.backward()
 
