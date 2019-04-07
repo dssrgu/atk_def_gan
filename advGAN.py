@@ -133,7 +133,7 @@ class AdvGAN_Attack:
             loss_def = F.cross_entropy(logits_def, labels)
 
             # backprop
-            loss_E = (-loss_adv) + loss_def_adv
+            loss_E = loss_def_adv + loss_def
 
             loss_E.backward()
 
@@ -161,7 +161,7 @@ class AdvGAN_Attack:
             loss_mine = -mi_pred
 
             # backprop
-            loss_advG = (-loss_adv) + (-loss_def_adv)
+            loss_advG = (-loss_def_adv)
             loss_advG += self.mine_weight * loss_mine
 
             loss_advG.backward()
