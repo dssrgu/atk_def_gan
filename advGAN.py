@@ -153,7 +153,7 @@ class AdvGAN_Attack:
 
             # def(adv) loss
             logits_def_adv = self.model(def_adv_images)
-            loss_def_adv = F.cross_entropy(logits_adv, labels)
+            loss_def_adv = F.cross_entropy(logits_def_adv, labels)
 
             # Mine loss
             mine_z = self.mine(adv_noise, z)
