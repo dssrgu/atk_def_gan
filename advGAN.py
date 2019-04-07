@@ -47,7 +47,8 @@ class AdvGAN_Attack:
         self.rec_loss = nn.MSELoss()
 
         self.en_input_nc = image_nc
-        self.E = models.Encoder(self.en_input_nc).to(device)
+        self.E = models.Encoder(image_nc).to(device)
+        self.recG = models.Generator(image_nc, adv=False).to(device)
         self.defG = models.Generator(image_nc, adv=False).to(device)
         self.advG = models.Generator(image_nc, z_dim=self.z_dim).to(device)
         self.mine = models.Mine(image_nc, z_dim=self.z_dim).to(device)
@@ -133,7 +134,7 @@ class AdvGAN_Attack:
             loss_def = F.cross_entropy(logits_def, labels)
 
             # backprop
-            loss_E = (-loss_adv) + loss_def_adv
+            loss_E = loss_def_adv + loss_def
 
             loss_E.backward()
 
@@ -161,7 +162,7 @@ class AdvGAN_Attack:
             loss_mine = -mi_pred
 
             # backprop
-            loss_advG = (-loss_adv) + (-loss_def_adv)
+            loss_advG = (-loss_def_adv)
             loss_advG += self.mine_weight * loss_mine
 
             loss_advG.backward()
