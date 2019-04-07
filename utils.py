@@ -1,4 +1,5 @@
 import torch.nn as nn
+import torch
 
 
 # for slurm script compatibility
@@ -21,3 +22,6 @@ def weights_init(m):
 # count number of trainable parameters for a model
 def parameters_count(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+
+

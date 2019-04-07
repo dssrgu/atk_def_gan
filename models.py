@@ -53,27 +53,27 @@ class Discriminator(nn.Module):
 
 class Generator(nn.Module):
     def __init__(self,
-                 image_nc,
-                 z_dim=0,
+                 z_dim=100,
+                 c_dim=0,
                  adv=True,
                  ):
         super(Generator, self).__init__()
 
         self.adv = adv
-        self.z_dim = z_dim
 
-        input_c = 128
+        input_c = z_dim
 
         if self.adv:
-            input_c += z_dim
+            input_c += c_dim
 
         decoder_lis = [
-            nn.ConvTranspose2d(input_c, 64, kernel_size=5, stride=2, padding=2, output_padding=1, bias=False),
-            nn.BatchNorm2d(64),
-            nn.ReLU(),
-            nn.ConvTranspose2d(64, 1, kernel_size=5, stride=2, padding=2, output_padding=1, bias=False),
-            #nn.BatchNorm2d(1),
-            #nn.ReLU(),
+            nn.Linear(input_c, 512),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.BatchNorm1d(512, momentum=0.8),
+            nn.Linear(512, 512),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.BatchNorm1d(512, momentum=0.8),
+            nn.Linear(512, 28*28),
         ]
 
         tanh_lis = [
@@ -83,80 +83,46 @@ class Generator(nn.Module):
         self.decoder = nn.Sequential(*decoder_lis)
         self.tanh = nn.Sequential(*tanh_lis)
 
-    def forward(self, x, z=None):
-
-        x = self.decoder(x)
+    def forward(self, z, c=None):
 
         if self.adv:
-            x = self.tanh(x)
+            z = torch.cat([z, c], dim=1)
 
-        return x
+        z = self.decoder(z)
+
+        if self.adv:
+            z = self.tanh(z)
+
+        z = z.view(-1, 1, 28, 28)
+
+        return z
 
 
 class Encoder(nn.Module):
     def __init__(self,
                  en_input_nc,
+                 z_dim=100,
                  ):
         super(Encoder, self).__init__()
 
         encoder_lis = [
             # MNIST:1*28*28
-            nn.Conv2d(en_input_nc, 64, kernel_size=5, stride=2, padding=2, bias=True),
-            nn.BatchNorm2d(64),
-            nn.ReLU(),
-            nn.Conv2d(64, 128, kernel_size=5, stride=2, padding=2, bias=True),
-            nn.BatchNorm2d(128),
-            nn.ReLU(),
+            nn.Linear(28*28, 512),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.BatchNorm1d(512, momentum=0.8),
+            nn.Linear(512, 512),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.BatchNorm1d(512, momentum=0.8),
+            nn.Linear(512, z_dim),
         ]
 
         self.encoder = nn.Sequential(*encoder_lis)
 
     def forward(self, x):
+        x = x.view(x.shape[0], -1)
         x = self.encoder(x)
+
         return x
-
-
-class Mine(nn.Module):
-    def __init__(self,
-                 en_input_nc,
-                 z_dim,
-                 ):
-        super(Mine, self).__init__()
-
-        img_lis = [
-            # MNIST:1*28*28
-            nn.Conv2d(en_input_nc, 1, kernel_size=5, stride=2, padding=2, bias=True),
-            nn.BatchNorm2d(1),
-            nn.ReLU(),
-            # 1*14*14
-        ]
-
-        z_lis = [
-            # z: z_dim*7*7
-            nn.Conv2d(z_dim, 1, kernel_size=1, stride=1, padding=0, bias=True),
-            nn.BatchNorm2d(1),
-            nn.ReLU(),
-            # 1*7*7
-        ]
-
-        full_lis = [
-            nn.Linear(14*14+7*7, 10),
-            nn.ReLU(),
-            nn.Linear(10, 1),
-        ]
-
-        self.img_encoder = nn.Sequential(*img_lis)
-        self.z_encoder = nn.Sequential(*z_lis)
-        self.full_encoder = nn.Sequential(*full_lis)
-
-    def forward(self, x, z):
-        x = self.img_encoder(x)
-        x = x.view(-1, 14*14)
-        z = self.z_encoder(z)
-        z = z.view(-1, 7*7)
-        concat = torch.cat([x, z], dim=1)
-        out = self.full_encoder(concat)
-        return out
 
 
 # Define a resnet block
