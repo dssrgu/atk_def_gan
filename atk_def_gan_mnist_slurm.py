@@ -19,7 +19,8 @@ QOS_TYPE = 'normal'  # 'normal' or 'highprio'
 
 PARAM_DICT = {
     '--seeds' : [i for i in range(1)],
-    '--enc_loss' : [(i+1) for i in range(26)],
+    '--z_dim' : [1, 2, 4, 8, 16, 32, 64, 128],
+    '--mine_weight' : [1, 10, 100, 1000, 10000],
     '--logging' : ['True'],
 }
 

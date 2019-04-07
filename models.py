@@ -60,6 +60,7 @@ class Generator(nn.Module):
         super(Generator, self).__init__()
 
         self.adv = adv
+        self.z_dim = z_dim
 
         input_c = 128
 

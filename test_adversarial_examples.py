@@ -49,7 +49,10 @@ def tester(dataset, dataloader, device, target_model, E, defG, advG, eps, out_pa
         test_img, test_label = test_img.to(device), test_label.to(device)
 
         # prep images
-        adv_noise = advG(E(test_img))
+        x_encoded = E(test_img)
+        z = torch.randn(x_encoded.shape[0], advG.z_dim, x_encoded.shape[1], x_encoded.shape[2]).to(device)
+
+        adv_noise = advG(x_encoded, z)
         adv_img = adv_noise * eps + test_img
         adv_img = torch.clamp(adv_img, 0, 1)
 
@@ -200,7 +203,8 @@ if __name__ == '__main__':
     parser.add_argument('--log_base_dir', type=str)
     parser.add_argument('--epoch', default=100, type=int)
     parser.add_argument('--seeds', default=0, type=int)
-    parser.add_argument('--enc_loss', default=1, type=int)
+    parser.add_argument('--z_dim', default=1, type=int)
+    parser.add_argument('--mine_weight', default=1, type=float)
     parser.add_argument('--eps', default=0.3, type=float)
     parser.add_argument('--parameters_count', action='store_true')
     parser.add_argument('--labels_count', action='store_true')
@@ -209,7 +213,7 @@ if __name__ == '__main__':
     for arg in vars(args):
         print(arg, getattr(args, arg))
 
-    model_name = 'enc_loss{}_'.format(args.enc_loss) + '_{}'.format(args.seeds) + '/'
+    model_name = 'z_dim{}'.format(args.enc_loss) + '_{}'.format(args.seeds) + '/'
 
     en_input_nc = image_nc
     # Define what device we are using
@@ -236,7 +240,7 @@ if __name__ == '__main__':
     E.eval()
 
     advG_path = models_path + model_name + 'advG_epoch_{}.pth'.format(epoch)
-    advG = models.Generator(image_nc).to(device)
+    advG = models.Generator(image_nc, z_dim=args.z_dim).to(device)
     advG.load_state_dict(torch.load(advG_path, map_location=device))
     if args.parameters_count:
         print('number of parameters(advG):', parameters_count(advG))

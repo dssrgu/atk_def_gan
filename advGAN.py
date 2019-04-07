@@ -17,6 +17,7 @@ class AdvGAN_Attack:
                  model_num_labels,
                  image_nc,
                  z_dim,
+                 mine_weight,
                  box_min,
                  box_max,
                  eps,
@@ -33,6 +34,7 @@ class AdvGAN_Attack:
         self.input_nc = image_nc
         self.output_nc = output_nc
         self.z_dim = z_dim
+        self.mine_weight = mine_weight
         self.box_min = box_min
         self.box_max = box_max
         self.eps = eps
@@ -47,7 +49,7 @@ class AdvGAN_Attack:
         self.en_input_nc = image_nc
         self.E = models.Encoder(self.en_input_nc).to(device)
         self.defG = models.Generator(image_nc, adv=False).to(device)
-        self.advG = models.Generator(image_nc, z_dim=self.z_dim, adv=True).to(device)
+        self.advG = models.Generator(image_nc, z_dim=self.z_dim).to(device)
         self.mine = models.Mine(image_nc, z_dim=self.z_dim).to(device)
         self.pgd = PGD(self.model, self.E, self.defG, self.device, self.eps)
 
@@ -77,11 +79,12 @@ class AdvGAN_Attack:
 
         # generate random latent vectors
         x_encoded = self.E(x)
-        z = torch.randn(x_encoded.shape[0], self.z_dim, x_encoded.shape[2], x_encoded.shape[3])
-        z_bar = torch.randn(x_encoded.shape[0], self.z_dim, x_encoded.shape[2], x_encoded.shape[3])
+        z = torch.randn(x_encoded.shape[0], self.z_dim, x_encoded.shape[2], x_encoded.shape[3]).to(self.device)
+        z_bar = torch.randn(x_encoded.shape[0], self.z_dim, x_encoded.shape[2], x_encoded.shape[3]).to(self.device)
 
         # make adv image
-        adv_images = self.advG(x_encoded, z) * self.eps + x
+        adv_noise = self.advG(x_encoded, z)
+        adv_images = adv_noise * self.eps + x
         adv_images = torch.clamp(adv_images, self.box_min, self.box_max)
 
         # make def(adv) image
@@ -92,7 +95,7 @@ class AdvGAN_Attack:
         def_images = self.defG(x_encoded) + x
         def_images = torch.clamp(def_images, self.box_min, self.box_max)
 
-        return adv_images, def_adv_images, def_images, z, z_bar
+        return adv_images, def_adv_images, def_images, adv_noise, z, z_bar
 
     # performance tester
     def test(self):
@@ -115,7 +118,7 @@ class AdvGAN_Attack:
             # clear grad
             self.optimizer_E.zero_grad()
 
-            adv_images, def_adv_images, def_images, _, _ = self.gen_images(x, labels)
+            adv_images, def_adv_images, def_images, _, _, _ = self.gen_images(x, labels)
 
             # adv loss
             logits_adv = self.model(adv_images)
@@ -130,7 +133,7 @@ class AdvGAN_Attack:
             loss_def = F.cross_entropy(logits_def, labels)
 
             # backprop
-            loss_E = (-loss_adv) + loss_def
+            loss_E = (-loss_adv) + loss_def_adv
 
             loss_E.backward()
 
@@ -141,7 +144,7 @@ class AdvGAN_Attack:
 
             # clear grad
             self.optimizer_advG.zero_grad()
-            adv_images, def_adv_images, _, z, z_bar = self.gen_images(x, labels)
+            adv_images, def_adv_images, _, adv_noise, z, z_bar = self.gen_images(x, labels)
 
             # adv loss
             logits_adv = self.model(adv_images)
@@ -152,14 +155,14 @@ class AdvGAN_Attack:
             loss_def_adv = F.cross_entropy(logits_adv, labels)
 
             # Mine loss
-            mine_z = self.mine(adv_images, z)
-            mine_z_bar = self.mine(adv_images, z_bar)
+            mine_z = self.mine(adv_noise, z)
+            mine_z_bar = self.mine(adv_noise, z_bar)
             mi_pred = torch.mean(mine_z) - torch.log(torch.mean(torch.exp(mine_z_bar)))
             loss_mine = -mi_pred
 
             # backprop
             loss_advG = (-loss_adv) + (-loss_def_adv)
-            loss_advG += loss_mine
+            loss_advG += self.mine_weight * loss_mine
 
             loss_advG.backward()
 
@@ -171,7 +174,7 @@ class AdvGAN_Attack:
             # clear grad
             self.optimizer_defG.zero_grad()
 
-            _, def_adv_images, def_images, _, _ = self.gen_images(x, labels)
+            _, def_adv_images, def_images, _, _, _ = self.gen_images(x, labels)
 
             # def(adv) loss
             logits_def_adv = self.model(def_adv_images)
@@ -194,11 +197,11 @@ class AdvGAN_Attack:
             # clear grad
             self.optimizer_Mine.zero_grad()
 
-            adv_images, _, _, z, z_bar = self.gen_images(x, labels)
+            adv_images, _, _, adv_noise, z, z_bar = self.gen_images(x, labels)
 
             # Mine loss
-            mine_z = self.mine(adv_images, z)
-            mine_z_bar = self.mine(adv_images, z_bar)
+            mine_z = self.mine(adv_noise, z)
+            mine_z_bar = self.mine(adv_noise, z_bar)
             mi_pred = torch.mean(mine_z) - torch.log(torch.mean(torch.exp(mine_z_bar)))
             loss_mine = -mi_pred
 
