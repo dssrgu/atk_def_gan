@@ -53,27 +53,19 @@ class Discriminator(nn.Module):
 
 class Generator(nn.Module):
     def __init__(self,
-                 z_dim=100,
-                 c_dim=0,
                  adv=True,
                  ):
         super(Generator, self).__init__()
 
         self.adv = adv
 
-        input_c = z_dim
-
-        if self.adv:
-            input_c += c_dim
+        input_c = 128
 
         decoder_lis = [
-            nn.Linear(input_c, 512),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.BatchNorm1d(512, momentum=0.8),
-            nn.Linear(512, 512),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.BatchNorm1d(512, momentum=0.8),
-            nn.Linear(512, 28*28),
+            nn.ConvTranspose2d(input_c, 64, kernel_size=5, stride=2, padding=2, output_padding=1, bias=False),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.ConvTranspose2d(64, 1, kernel_size=5, stride=2, padding=2, output_padding=1, bias=False),
         ]
 
         tanh_lis = [
@@ -83,17 +75,12 @@ class Generator(nn.Module):
         self.decoder = nn.Sequential(*decoder_lis)
         self.tanh = nn.Sequential(*tanh_lis)
 
-    def forward(self, z, c=None):
-
-        if self.adv:
-            z = torch.cat([z, c], dim=1)
+    def forward(self, z):
 
         z = self.decoder(z)
 
         if self.adv:
             z = self.tanh(z)
-
-        z = z.view(-1, 1, 28, 28)
 
         return z
 
@@ -101,25 +88,22 @@ class Generator(nn.Module):
 class Encoder(nn.Module):
     def __init__(self,
                  en_input_nc,
-                 z_dim=100,
                  ):
         super(Encoder, self).__init__()
 
         encoder_lis = [
             # MNIST:1*28*28
-            nn.Linear(28*28, 512),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.BatchNorm1d(512, momentum=0.8),
-            nn.Linear(512, 512),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.BatchNorm1d(512, momentum=0.8),
-            nn.Linear(512, z_dim),
+            nn.Conv2d(en_input_nc, 64, kernel_size=5, stride=2, padding=2, bias=True),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.Conv2d(64, 128, kernel_size=5, stride=2, padding=2, bias=True),
+            nn.BatchNorm2d(128),
+            nn.ReLU(),
         ]
 
         self.encoder = nn.Sequential(*encoder_lis)
 
     def forward(self, x):
-        x = x.view(x.shape[0], -1)
         x = self.encoder(x)
 
         return x
