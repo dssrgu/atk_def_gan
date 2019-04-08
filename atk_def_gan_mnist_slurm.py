@@ -6,7 +6,7 @@ from autopar import make_par
 from sbatch_launcher import launch_tasks, srun_gpuless_task
 
 NUM_PROCS_ON_GPU = 1
-PARTITION = 'mllab'  # 'mllab', 'all', or 'dept'
+PARTITION = 'all'  # 'mllab', 'all', or 'dept'
 
 PYTHON_FILE = 'main.py'
 #PYTHON_FILE = 'test_adversarial_examples.py'
@@ -19,10 +19,10 @@ QOS_TYPE = 'normal'  # 'normal' or 'highprio'
 
 PARAM_DICT = {
     '--seeds' : [i for i in range(1)],
-    '--lr_E' : [0.01, 0.001, 0.0001],
-    '--lr_advG' : [0.01, 0.001, 0.0001],
-    '--lr_defG' : [0.01, 0.001, 0.0001],
-    '--overwrite' : ['True'],
+    '--lr_E' : [0.1, 0.01],
+    '--lr_advG' : [0.1, 0.01],
+    '--lr_defG' : [0.000001, 0.0000001],
+    '--overwrite' : ['False'],
     '--logging' : ['True'],
 }
 
