@@ -29,7 +29,7 @@ parser.add_argument('--lr_E', default=0.01, type=float)
 parser.add_argument('--lr_advG', default=0.01, type=float)
 parser.add_argument('--lr_defG', default=0.0001, type=float)
 parser.add_argument('--logging', default='False', type=boolean_string)
-parser.add_argument('--overwrite', default='False', type=boolean_string)
+parser.add_argument('--overwrite', default='True', type=boolean_string)
 parser.add_argument('--epochs', default=100, type=int)
 
 args = parser.parse_args()
