@@ -9,7 +9,7 @@ from models import MNIST_target_net
 from pgd_attack import PGD
 import argparse
 import numpy as np
-from utils import boolean_string, parameters_count
+from utils import boolean_string, parameters_count, name_maker
 
 use_cuda = True
 image_nc = 1
@@ -205,8 +205,9 @@ if __name__ == '__main__':
     parser.add_argument('--log_base_dir', type=str)
     parser.add_argument('--epoch', default=100, type=int)
     parser.add_argument('--seeds', default=0, type=int)
-    parser.add_argument('--z_dim', default=1, type=int)
-    parser.add_argument('--mine_weight', default=1, type=float)
+    parser.add_argument('--lr_E', default=0.001, type=float)
+    parser.add_argument('--lr_advG', default=0.001, type=float)
+    parser.add_argument('--lr_defG', default=0.001, type=float)
     parser.add_argument('--eps', default=0.3, type=float)
     parser.add_argument('--parameters_count', action='store_true')
     parser.add_argument('--labels_count', action='store_true')
@@ -215,9 +216,7 @@ if __name__ == '__main__':
     for arg in vars(args):
         print(arg, getattr(args, arg))
 
-    model_name = 'z_dim{}'.format(args.z_dim) + \
-        '_mine_weight{0:.1f}'.format(args.mine_weight) + \
-        '_{}'.format(args.seeds) + '/'
+    model_name = name_maker(args)
 
     en_input_nc = image_nc
     # Define what device we are using

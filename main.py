@@ -6,7 +6,8 @@ from advGAN import AdvGAN_Attack
 from models import MNIST_target_net
 import argparse
 from tensorboardX import SummaryWriter
-from utils import boolean_string
+from utils import boolean_string, name_maker
+import os
 
 use_cuda = True
 image_nc = 1
@@ -24,18 +25,26 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument('--log_base_dir', default='mnist/data', type=str)
 parser.add_argument('--seeds', default=0, type=int)
-parser.add_argument('--z_dim', default=1, type=int)
-parser.add_argument('--mine_weight', default=1, type=float)
+parser.add_argument('--lr_E', default=0.001, type=float)
+parser.add_argument('--lr_advG', default=0.001, type=float)
+parser.add_argument('--lr_defG', default=0.001, type=float)
 parser.add_argument('--logging', default='False', type=boolean_string)
+parser.add_argument('--overwrite', default='False', type=boolean_string)
 parser.add_argument('--epochs', default=100, type=int)
 
 args = parser.parse_args()
 for arg in vars(args):
     print(arg, getattr(args, arg))
 
-model_name = 'z_dim{}'.format(args.z_dim) + \
-    '_mine_weight{}'.format(args.mine_weight) + \
-    '_{}'.format(args.seeds) + '/'
+model_name = name_maker(args)
+
+if not os.path.exists(models_path):
+    os.makedirs(models_path)
+if not os.path.exists(models_path + model_name):
+    os.makedirs(models_path + model_name)
+elif not args.overwrite:
+    print('result already exists!')
+    exit()
 
 # tensorboard writer
 if args.logging:
@@ -61,8 +70,6 @@ advGAN = AdvGAN_Attack(device,
                        targeted_model,
                        model_num_labels,
                        image_nc,
-                       args.z_dim,
-                       args.mine_weight,
                        BOX_MIN,
                        BOX_MAX,
                        eps,
@@ -70,6 +77,9 @@ advGAN = AdvGAN_Attack(device,
                        models_path,
                        out_path,
                        model_name,
-                       writer)
+                       writer,
+                       args.lr_E,
+                       args.lr_advG,
+                       args.lr_defG)
 
 advGAN.train(dataloader, args.epochs)
