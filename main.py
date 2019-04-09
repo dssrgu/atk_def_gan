@@ -43,6 +43,7 @@ if not os.path.exists(models_path):
 if not os.path.exists(models_path + model_name):
     os.makedirs(models_path + model_name)
 elif not args.overwrite:
+    print()
     print('result already exists!')
     exit()
 
