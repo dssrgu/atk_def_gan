@@ -44,6 +44,7 @@ class AdvGAN_Attack:
         self.lr_advG = lr_advG
         self.lr_defG = lr_defG
         self.temp = temp
+        self.def_loss = nn.MSELoss()
 
         self.en_input_nc = image_nc
         self.E = models.Encoder(image_nc).to(device)
@@ -97,6 +98,9 @@ class AdvGAN_Attack:
 
     # train single batch
     def train_batch(self, x, labels):
+
+        logits_clean = self.model(x)
+        loss_clean = F.cross_entropy(logits_clean, labels)
 
         # optimize E
         for i in range(1):
@@ -163,8 +167,9 @@ class AdvGAN_Attack:
             logits_def = self.model(def_images)
             loss_def = F.cross_entropy(logits_def, labels)
 
+
             # backprop
-            loss_defG = loss_def_adv + loss_def
+            loss_defG = self.def_loss(loss_def_adv, loss_clean) + self.def_loss(loss_def, loss_clean)
 
             loss_defG.backward()
 
