@@ -29,6 +29,7 @@ def tester(dataset, dataloader, device, target_model, E, defG, advG, eps, out_pa
     num_correct_def_adv = 0
     num_correct_def = 0
     num_correct_def_pgd = 0
+    num_correct_def_pgd_nat = 0
     num_correct = 0
 
     test_img_full = []
@@ -38,10 +39,12 @@ def tester(dataset, dataloader, device, target_model, E, defG, advG, eps, out_pa
     def_img_full = []
     def_adv_img_full = []
     def_pgd_img_full = []
+    def_pgd_nat_img_full = []
 
     pred_adv_full = []
     pred_pgd_full = []
     pred_def_pgd_full = []
+    pred_def_pgd_nat_full = []
 
     for i, data in enumerate(dataloader, 0):
         # load images
@@ -71,6 +74,10 @@ def tester(dataset, dataloader, device, target_model, E, defG, advG, eps, out_pa
 
         pgd_nat_img = pgd.perturb(test_img, test_label, itr=0)
 
+        def_pgd_nat_noise = defG(E(pgd_nat_img))
+        def_pgd_nat_img = def_pgd_nat_noise + pgd_nat_img
+        def_pgd_nat_img = torch.clamp(def_pgd_nat_img, 0, 1)
+
         # calculate acc.
         pred = torch.argmax(target_model(test_img), 1)
         pred_adv = torch.argmax(target_model(adv_img), 1)
@@ -78,6 +85,7 @@ def tester(dataset, dataloader, device, target_model, E, defG, advG, eps, out_pa
         pred_def_adv = torch.argmax(target_model(def_adv_img), 1)
         pred_def = torch.argmax(target_model(def_img), 1)
         pred_def_pgd = torch.argmax(target_model(def_pgd_img), 1)
+        pred_def_pgd_nat = torch.argmax(target_model(def_pgd_nat_img), 1)
 
         num_correct += torch.sum(pred == test_label, 0)
         num_correct_adv += torch.sum(pred_adv == test_label, 0)
@@ -85,11 +93,13 @@ def tester(dataset, dataloader, device, target_model, E, defG, advG, eps, out_pa
         num_correct_def_adv += torch.sum(pred_def_adv == test_label, 0)
         num_correct_def += torch.sum(pred_def == test_label, 0)
         num_correct_def_pgd += torch.sum(pred_def_pgd == test_label, 0)
+        num_correct_def_pgd_nat += torch.sum(pred_def_pgd_nat == test_label, 0)
 
         if label_count:
             pred_adv_full.append(pred_adv)
             pred_pgd_full.append(pred_pgd)
             pred_def_pgd_full.append(pred_def_pgd)
+            pred_def_pgd_nat_full.append(pred_def_pgd_nat)
 
         if save_img and i < 1:
             test_img_full.append(test_img)
@@ -99,6 +109,7 @@ def tester(dataset, dataloader, device, target_model, E, defG, advG, eps, out_pa
             def_img_full.append(def_img)
             def_adv_img_full.append(def_adv_img)
             def_pgd_img_full.append(def_pgd_img)
+            def_pgd_nat_img_full.append(def_pgd_nat_img)
 
     print('num_correct(nat): ', num_correct.item())
     print('num_correct(adv): ', num_correct_adv.item())
@@ -106,6 +117,7 @@ def tester(dataset, dataloader, device, target_model, E, defG, advG, eps, out_pa
     print('num_correct(def(adv)): ', num_correct_def_adv.item())
     print('num_correct(def(nat)): ', num_correct_def.item())
     print('num_correct(def(pgd)): ', num_correct_def_pgd.item())
+    print('num_correct(def(pgd_nat)): ', num_correct_def_pgd_nat.item())
     print()
 
     print('accuracy of nat imgs: %f' % (num_correct.item() / len(dataset)))
@@ -114,6 +126,7 @@ def tester(dataset, dataloader, device, target_model, E, defG, advG, eps, out_pa
     print('accuracy of def(adv) imgs: %f' % (num_correct_def_adv.item() / len(dataset)))
     print('accuracy of def(nat) imgs: %f' % (num_correct_def.item() / len(dataset)))
     print('accuracy of def(pgd) imgs: %f' % (num_correct_def_pgd.item() / len(dataset)))
+    print('accuracy of def(pgd_nat) imgs: %f' % (num_correct_def_pgd_nat.item() / len(dataset)))
     print()
 
     l_inf = np.amax(np.abs(adv_img.cpu().detach().numpy() - test_img.cpu().detach().numpy()))
@@ -124,6 +137,8 @@ def tester(dataset, dataloader, device, target_model, E, defG, advG, eps, out_pa
     print('l-inf of def(adv) imgs:%f' % (l_inf))
     l_inf = np.amax(np.abs(def_pgd_img.cpu().detach().numpy() - test_img.cpu().detach().numpy()))
     print('l-inf of def(pgd) imgs:%f' % (l_inf))
+    l_inf = np.amax(np.abs(def_pgd_nat_img.cpu().detach().numpy() - test_img.cpu().detach().numpy()))
+    print('l-inf of def(pgd_nat) imgs:%f' % (l_inf))
 
     print()
 
@@ -143,6 +158,11 @@ def tester(dataset, dataloader, device, target_model, E, defG, advG, eps, out_pa
         print('label counts in def_pgd imgs:')
         print(np.unique(preds, return_counts=True))
         
+        pred_def_pgd_nat_full = torch.cat(pred_def_pgd_nat_full)
+        preds = pred_def_pgd_nat_full.cpu().detach().numpy()
+        print('label counts in def_pgd_nat imgs:')
+        print(np.unique(preds, return_counts=True))
+        
         print()
 
     if save_img:
@@ -153,6 +173,7 @@ def tester(dataset, dataloader, device, target_model, E, defG, advG, eps, out_pa
         def_img_full = torch.cat(def_img_full)
         def_adv_img_full = torch.cat(def_adv_img_full)
         def_pgd_img_full = torch.cat(def_pgd_img_full)
+        def_pgd_nat_img_full = torch.cat(def_pgd_nat_img_full)
 
         test_grid = make_grid(test_img_full)
         adv_grid = make_grid(adv_img_full)
@@ -161,6 +182,7 @@ def tester(dataset, dataloader, device, target_model, E, defG, advG, eps, out_pa
         def_grid = make_grid(def_img_full)
         def_adv_grid = make_grid(def_adv_img_full)
         def_pgd_grid = make_grid(def_pgd_img_full)
+        def_pgd_nat_grid = make_grid(def_pgd_nat_img_full)
 
         if not os.path.exists(out_path + model_name):
             os.makedirs(out_path + model_name)
@@ -172,6 +194,7 @@ def tester(dataset, dataloader, device, target_model, E, defG, advG, eps, out_pa
         save_image(def_grid, out_path + model_name + 'def_grid.png')
         save_image(def_adv_grid, out_path + model_name + 'def_adv_grid.png')
         save_image(def_pgd_grid, out_path + model_name + 'def_pgd_grid.png')
+        save_image(def_pgd_nat_grid, out_path + model_name + 'def_pgd_nat_grid.png')
 
         print('images saved')
 
