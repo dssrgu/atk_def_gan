@@ -225,9 +225,10 @@ if __name__ == '__main__':
     parser.add_argument('--log_base_dir', type=str)
     parser.add_argument('--epoch', default=100, type=int)
     parser.add_argument('--seeds', default=0, type=int)
-    parser.add_argument('--lr_E', default=0.001, type=float)
-    parser.add_argument('--lr_advG', default=0.001, type=float)
-    parser.add_argument('--lr_defG', default=0.001, type=float)
+    parser.add_argument('--E_lr', default=0.01, type=float)
+    parser.add_argument('--advG_lr', default=0.1, type=float)
+    parser.add_argument('--defG_lr', default=0.0001, type=float)
+    parser.add_argument('--temp', default=0.1, type=float)
     parser.add_argument('--eps', default=0.3, type=float)
     parser.add_argument('--parameters_count', action='store_true')
     parser.add_argument('--labels_count', action='store_true')
@@ -263,7 +264,7 @@ if __name__ == '__main__':
     E.eval()
 
     advG_path = models_path + model_name + 'advG_epoch_{}.pth'.format(epoch)
-    advG = models.Generator(adv=True).to(device)
+    advG = models.Generator(adv=True, temp=args.temp).to(device)
     advG.load_state_dict(torch.load(advG_path, map_location=device))
     if args.parameters_count:
         print('number of parameters(advG):', parameters_count(advG))

@@ -25,9 +25,10 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument('--log_base_dir', default='mnist/data', type=str)
 parser.add_argument('--seeds', default=0, type=int)
-parser.add_argument('--lr_E', default=0.01, type=float)
-parser.add_argument('--lr_advG', default=0.1, type=float)
-parser.add_argument('--lr_defG', default=0.0001, type=float)
+parser.add_argument('--E_lr', default=0.01, type=float)
+parser.add_argument('--advG_lr', default=0.1, type=float)
+parser.add_argument('--defG_lr', default=0.0001, type=float)
+parser.add_argument('--temp', default=0.1, type=float)
 parser.add_argument('--logging', default='False', type=boolean_string)
 parser.add_argument('--overwrite', default='True', type=boolean_string)
 parser.add_argument('--epochs', default=100, type=int)
@@ -79,8 +80,9 @@ advGAN = AdvGAN_Attack(device,
                        out_path,
                        model_name,
                        writer,
-                       args.lr_E,
-                       args.lr_advG,
-                       args.lr_defG)
+                       args.E_lr,
+                       args.advG_lr,
+                       args.defG_lr,
+                       args.temp)
 
 advGAN.train(dataloader, args.epochs)

@@ -24,7 +24,8 @@ class AdvGAN_Attack:
                  writer,
                  lr_E,
                  lr_advG,
-                 lr_defG):
+                 lr_defG,
+                 temp):
         output_nc = image_nc
         self.device = device
         self.model_num_labels = model_num_labels
@@ -42,12 +43,12 @@ class AdvGAN_Attack:
         self.lr_E = lr_E
         self.lr_advG = lr_advG
         self.lr_defG = lr_defG
-        self.rec_loss = nn.MSELoss()
+        self.temp = temp
 
         self.en_input_nc = image_nc
         self.E = models.Encoder(image_nc).to(device)
         self.defG = models.Generator(adv=False).to(device)
-        self.advG = models.Generator(adv=True).to(device)
+        self.advG = models.Generator(adv=True, temp=self.temp).to(device)
         self.pgd = PGD(self.model, self.E, self.defG, self.device, self.eps)
 
         # initialize all weights

@@ -54,10 +54,12 @@ class Discriminator(nn.Module):
 class Generator(nn.Module):
     def __init__(self,
                  adv=True,
+                 temp=0.1
                  ):
         super(Generator, self).__init__()
 
         self.adv = adv
+        self.temp = temp
 
         input_c = 128
 
@@ -80,10 +82,8 @@ class Generator(nn.Module):
         x = self.decoder(z)
 
         if self.adv:
-            x = self.sig(x)
-
             # reparam
-            x = torch.bernoulli(x)
+            x = torch.distributions.RelaxedBernoulli(self.temp, logits=x).rsample()
             x = 2 * x - 1
 
         return x
