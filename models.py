@@ -68,21 +68,25 @@ class Generator(nn.Module):
             nn.ConvTranspose2d(64, 1, kernel_size=5, stride=2, padding=2, output_padding=1, bias=False),
         ]
 
-        tanh_lis = [
-            nn.Tanh(),
+        sig_lis = [
+            nn.Sigmoid(),
         ]
 
         self.decoder = nn.Sequential(*decoder_lis)
-        self.tanh = nn.Sequential(*tanh_lis)
+        self.sig = nn.Sequential(*sig_lis)
 
     def forward(self, z):
 
-        z = self.decoder(z)
+        x = self.decoder(z)
 
         if self.adv:
-            z = self.tanh(z)
+            x = self.sig(x)
 
-        return z
+            # reparam
+            x = torch.bernoulli(x)
+            x = 2 * x - 1
+
+        return x
 
 
 class Encoder(nn.Module):
