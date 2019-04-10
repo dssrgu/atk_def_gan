@@ -99,9 +99,6 @@ class AdvGAN_Attack:
     # train single batch
     def train_batch(self, x, labels):
 
-        logits_clean = self.model(x)
-        loss_clean = F.cross_entropy(logits_clean, labels)
-
         # optimize E
         for i in range(1):
 
@@ -121,9 +118,13 @@ class AdvGAN_Attack:
             # def(nat) loss
             logits_def = self.model(def_images)
             loss_def = F.cross_entropy(logits_def, labels)
+            
+            logits_clean = self.model(x)
+            loss_clean = F.cross_entropy(logits_clean, labels)
 
             # backprop
-            loss_E = (-loss_adv) + loss_def_adv + loss_def
+            #loss_E = (-loss_adv) + loss_def_adv + loss_def
+            loss_E = (-self.def_loss(loss_adv, loss_clean)) + self.def_loss(loss_def_adv, loss_clean) + self.def_loss(loss_def, loss_clean)
 
             loss_E.backward()
 
@@ -144,8 +145,12 @@ class AdvGAN_Attack:
             logits_def_adv = self.model(def_adv_images)
             loss_def_adv = F.cross_entropy(logits_def_adv, labels)
 
+            logits_clean = self.model(x)
+            loss_clean = F.cross_entropy(logits_clean, labels)
+
             # backprop
-            loss_advG = (-loss_adv) + (-loss_def_adv)
+            #loss_advG = (-loss_adv) + (-loss_def_adv)
+            loss_advG = (-self.def_loss(loss_adv, loss_clean)) + (-self.def_loss(loss_def_adv, loss_clean))
 
             loss_advG.backward()
 
@@ -167,8 +172,11 @@ class AdvGAN_Attack:
             logits_def = self.model(def_images)
             loss_def = F.cross_entropy(logits_def, labels)
 
+            logits_clean = self.model(x)
+            loss_clean = F.cross_entropy(logits_clean, labels)
 
             # backprop
+            #loss_defG = loss_def_adv + loss_def
             loss_defG = self.def_loss(loss_def_adv, loss_clean) + self.def_loss(loss_def, loss_clean)
 
             loss_defG.backward()
