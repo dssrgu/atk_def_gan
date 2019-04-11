@@ -20,9 +20,10 @@ QOS_TYPE = 'normal'  # 'normal' or 'highprio'
 PARAM_DICT = {
     '--seeds' : [i for i in range(1)],
     '--E_lr' : [0.1, 0.01, 0.001],
-    '--advG_lr' : [0.1, 0.01, 0.001],
-    '--defG_lr' : [0.0001, 0.00001, 0.000001],
-    '--overwrite' : ['True'],
+    '--advG_lr' : [0.1, 0.01],
+    #'--defG_lr' : [0.0001, 0.00001, 0.000001],
+    '--defG_lr' : [0.01, 0.001],
+    '--overwrite' : ['False'],
     '--logging' : ['True'],
 }
 
@@ -78,5 +79,5 @@ launch_tasks(
         qos=QOS_TYPE,
 )
 
-srun_gpuless_task(r"""bash -c 'tensorboard --host=$(hostname).mllab.snu.ac.kr --port=0 --logdir={}'""".format(TENSORBOARD_DIR))
+#srun_gpuless_task(r"""bash -c 'tensorboard --host=$(hostname).mllab.snu.ac.kr --port=0 --logdir={}'""".format(TENSORBOARD_DIR))
 
