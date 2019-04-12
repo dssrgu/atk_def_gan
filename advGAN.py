@@ -106,17 +106,28 @@ class AdvGAN_Attack:
             # clear grad
             self.optimizer_E.zero_grad()
 
+            adv_images, _, _ = self.gen_images(x, labels)
+
+            # clean loss
             z = self.E(x)
             z_bar = z[torch.randperm(z.size()[0])]
 
-            # mine loss
             mine_z = self.mine(x, z)
             mine_z_bar = self.mine(x, z_bar)
 
             mi_pred = torch.mean(mine_z) - torch.log(torch.mean(torch.exp(mine_z_bar)))
 
+            # adv loss
+            z_adv = self.E(adv_images)
+            z_adv_bar = z_adv[torch.randperm(z_adv.size()[0])]
+
+            mine_z_adv = self.mine(x, z_adv)
+            mine_z_adv_bar = self.mine(x, z_adv_bar)
+
+            mi_pred_adv = torch.mean(mine_z_adv) - torch.log(torch.mean(torch.exp(mine_z_adv_bar)))
+            
             #backprop
-            loss_E = - mi_pred
+            loss_E = (-mi_pred) + (-mi_pred_adv)
 
             loss_E.backward()
 
@@ -172,19 +183,29 @@ class AdvGAN_Attack:
 
             # clear grad
             self.optimizer_mine.zero_grad()
+            
+            adv_images, _, _ = self.gen_images(x, labels)
 
-            # backprop
+            # clean loss
             z = self.E(x)
             z_bar = z[torch.randperm(z.size()[0])]
 
-            # mine loss
             mine_z = self.mine(x, z)
             mine_z_bar = self.mine(x, z_bar)
 
             mi_pred = torch.mean(mine_z) - torch.log(torch.mean(torch.exp(mine_z_bar)))
 
+            # adv loss
+            z_adv = self.E(adv_images)
+            z_adv_bar = z_adv[torch.randperm(z_adv.size()[0])]
+
+            mine_z_adv = self.mine(x, z_adv)
+            mine_z_adv_bar = self.mine(x, z_adv_bar)
+
+            mi_pred_adv = torch.mean(mine_z_adv) - torch.log(torch.mean(torch.exp(mine_z_adv_bar)))
+            
             #backprop
-            loss_mine = -mi_pred
+            loss_mine = (-mi_pred) + (-mi_pred_adv)
 
             loss_mine.backward()
 

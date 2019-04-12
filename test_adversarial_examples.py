@@ -228,6 +228,7 @@ if __name__ == '__main__':
     parser.add_argument('--E_lr', default=0.001, type=float)
     parser.add_argument('--advG_lr', default=0.001, type=float)
     parser.add_argument('--defG_lr', default=0.001, type=float)
+    parser.add_argument('--mine_lr', default=0.001, type=float)
     parser.add_argument('--eps', default=0.3, type=float)
     parser.add_argument('--parameters_count', action='store_true')
     parser.add_argument('--labels_count', action='store_true')
