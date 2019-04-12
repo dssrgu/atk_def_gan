@@ -109,6 +109,49 @@ class Encoder(nn.Module):
         return x
 
 
+class Mine(nn.Module):
+    def __init__(self,
+                 en_input_nc,
+                 z_dim=128,
+                 ):
+        super(Mine, self).__init__()
+
+        img_lis = [
+            # MNIST:1*28*28
+            nn.Conv2d(en_input_nc, 1, kernel_size=5, stride=2, padding=2, bias=True),
+            nn.BatchNorm2d(1),
+            nn.ReLU(),
+            # 1*14*14
+        ]
+
+        z_lis = [
+            # z: z_dim*7*7
+            nn.Conv2d(z_dim, 1, kernel_size=1, stride=1, padding=0, bias=True),
+            nn.BatchNorm2d(1),
+            nn.ReLU(),
+            # 1*7*7
+        ]
+
+        full_lis = [
+            nn.Linear(14*14+7*7, 10),
+            nn.ReLU(),
+            nn.Linear(10, 1),
+        ]
+
+        self.img_encoder = nn.Sequential(*img_lis)
+        self.z_encoder = nn.Sequential(*z_lis)
+        self.full_encoder = nn.Sequential(*full_lis)
+
+    def forward(self, x, z):
+        x = self.img_encoder(x)
+        x = x.view(-1, 14*14)
+        z = self.z_encoder(z)
+        z = z.view(-1, 7*7)
+        concat = torch.cat([x, z], dim=1)
+        out = self.full_encoder(concat)
+        return out
+
+
 # Define a resnet block
 # modified from https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/blob/master/models/networks.py
 class ResnetBlock(nn.Module):

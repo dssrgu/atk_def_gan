@@ -23,7 +23,8 @@ class AdvGAN_Attack:
                  writer,
                  E_lr,
                  advG_lr,
-                 defG_lr):
+                 defG_lr,
+                 mine_lr):
         output_nc = image_nc
         self.device = device
         self.model_num_labels = model_num_labels
@@ -41,25 +42,28 @@ class AdvGAN_Attack:
         self.E_lr = E_lr
         self.advG_lr = advG_lr
         self.defG_lr = defG_lr
+        self.mine_lr = mine_lr
 
         self.en_input_nc = image_nc
         self.E = models.Encoder(image_nc).to(device)
         self.defG = models.Generator(adv=False).to(device)
         self.advG = models.Generator(adv=True).to(device)
+        self.mine = models.Mine(image_nc).to(device)
         self.pgd = PGD(self.model, self.E, self.defG, self.device, self.eps)
 
         # initialize all weights
         self.E.apply(weights_init)
         self.defG.apply(weights_init)
         self.advG.apply(weights_init)
+        self.mine.apply(weights_init)
 
         # initialize optimizers
         self.optimizer_E = torch.optim.Adam(self.E.parameters(),
                                             lr=self.E_lr)
         self.optimizer_defG = torch.optim.Adam(self.defG.parameters(),
-                                               lr=self.advG_lr)
-        self.optimizer_advG = torch.optim.Adam(self.advG.parameters(),
                                                lr=self.defG_lr)
+        self.optimizer_advG = torch.optim.Adam(self.advG.parameters(),
+                                               lr=self.advG_lr)
 
     # generate images for training
     def gen_images(self, x, labels):
@@ -76,7 +80,6 @@ class AdvGAN_Attack:
         # make def(nat) image
         def_images = self.defG(self.E(x)) + x
         def_images = torch.clamp(def_images, self.box_min, self.box_max)
-
 
         return adv_images, def_adv_images, def_images,
 
@@ -101,22 +104,17 @@ class AdvGAN_Attack:
             # clear grad
             self.optimizer_E.zero_grad()
 
-            adv_images, def_adv_images, def_images = self.gen_images(x, labels)
+            z = self.E(x)
+            z_bar = z[torch.randperm(z.size()[0])]
 
-            # adv loss
-            logits_adv = self.model(adv_images)
-            loss_adv = F.cross_entropy(logits_adv, labels)
+            # mine loss
+            mine_z = self.mine(x, z)
+            mine_z_bar = self.mine(x, z_bar)
 
-            # def(adv) loss
-            logits_def_adv = self.model(def_adv_images)
-            loss_def_adv = F.cross_entropy(logits_def_adv, labels)
+            mi_pred = torch.mean(mine_z) - torch.log(torch.mean(torch.exp(mine_z_bar)))
 
-            # def(nat) loss
-            logits_def = self.model(def_images)
-            loss_def = F.cross_entropy(logits_def, labels)
-
-            # backprop
-            loss_E = (-loss_adv) + loss_def_adv + loss_def
+            #backprop
+            loss_E = - mi_pred
 
             loss_E.backward()
 
@@ -214,16 +212,16 @@ class AdvGAN_Attack:
                 self.optimizer_E = torch.optim.Adam(self.E.parameters(),
                                                     lr=self.E_lr/10)
                 self.optimizer_defG = torch.optim.Adam(self.defG.parameters(),
-                                                       lr=self.advG_lr/10)
-                self.optimizer_advG = torch.optim.Adam(self.advG.parameters(),
                                                        lr=self.defG_lr/10)
+                self.optimizer_advG = torch.optim.Adam(self.advG.parameters(),
+                                                       lr=self.advG_lr/10)
             if epoch == 80:
                 self.optimizer_E = torch.optim.Adam(self.E.parameters(),
                                                     lr=self.E_lr/100)
                 self.optimizer_defG = torch.optim.Adam(self.defG.parameters(),
-                                                       lr=self.advG_lr/100)
-                self.optimizer_advG = torch.optim.Adam(self.advG.parameters(),
                                                        lr=self.defG_lr/100)
+                self.optimizer_advG = torch.optim.Adam(self.advG.parameters(),
+                                                       lr=self.advG_lr/100)
 
             loss_E_sum = 0
             loss_defG_sum = 0

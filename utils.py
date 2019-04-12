@@ -23,10 +23,12 @@ def weights_init(m):
 def parameters_count(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
+
 def name_maker(args):
     model_name = 'E{}'.format(args.E_lr) + \
         '_advG{}'.format(args.advG_lr) + \
         '_defG{}'.format(args.defG_lr) + \
+        '_mine{}'.format(args.mine_lr) + \
         '_{}'.format(args.seeds) + '/'
 
     return model_name
