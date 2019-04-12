@@ -64,6 +64,8 @@ class AdvGAN_Attack:
                                                lr=self.defG_lr)
         self.optimizer_advG = torch.optim.Adam(self.advG.parameters(),
                                                lr=self.advG_lr)
+        self.optimizer_mine = torch.optim.Adam(self.mine.parameters(),
+                                               lr=self.mine_lr)
 
     # generate images for training
     def gen_images(self, x, labels):
@@ -165,6 +167,29 @@ class AdvGAN_Attack:
 
             self.optimizer_defG.step()
 
+        # optimize Mine
+        for i in range(1):
+
+            # clear grad
+            self.optimizer_mine.zero_grad()
+
+            # backprop
+            z = self.E(x)
+            z_bar = z[torch.randperm(z.size()[0])]
+
+            # mine loss
+            mine_z = self.mine(x, z)
+            mine_z_bar = self.mine(x, z_bar)
+
+            mi_pred = torch.mean(mine_z) - torch.log(torch.mean(torch.exp(mine_z_bar)))
+
+            #backprop
+            loss_mine = -mi_pred
+
+            loss_mine.backward()
+
+            self.optimizer_mine.step()
+
         # pgd performance check
 
         self.E.eval()
@@ -202,7 +227,7 @@ class AdvGAN_Attack:
         self.defG.train()
 
         return pgd_acc_li, pgd_nat_acc_li, torch.sum(loss_E).item(), torch.sum(loss_advG).item(),\
-               torch.sum(loss_defG).item()
+               torch.sum(loss_defG).item(), torch.sum(loss_mine).item(),
 
     # main training function
     def train(self, train_dataloader, epochs):
@@ -215,6 +240,8 @@ class AdvGAN_Attack:
                                                        lr=self.defG_lr/10)
                 self.optimizer_advG = torch.optim.Adam(self.advG.parameters(),
                                                        lr=self.advG_lr/10)
+                self.optimizer_mine = torch.optim.Adam(self.mine.parameters(),
+                                                       lr=self.mine_lr/10)
             if epoch == 80:
                 self.optimizer_E = torch.optim.Adam(self.E.parameters(),
                                                     lr=self.E_lr/100)
@@ -222,10 +249,13 @@ class AdvGAN_Attack:
                                                        lr=self.defG_lr/100)
                 self.optimizer_advG = torch.optim.Adam(self.advG.parameters(),
                                                        lr=self.advG_lr/100)
+                self.optimizer_mine = torch.optim.Adam(self.mine.parameters(),
+                                                       lr=self.mine_lr/100)
 
             loss_E_sum = 0
             loss_defG_sum = 0
             loss_advG_sum = 0
+            loss_mine_sum = 0
             pgd_acc_li_sum = []
             pgd_nat_acc_li_sum = []
 
@@ -233,19 +263,21 @@ class AdvGAN_Attack:
                 images, labels = data
                 images, labels = images.to(self.device), labels.to(self.device)
 
-                pgd_acc_li_batch, pgd_nat_acc_li_batch, loss_E_batch, loss_advG_batch, loss_defG_batch = \
+                pgd_acc_li_batch, pgd_nat_acc_li_batch, \
+                loss_E_batch, loss_advG_batch, loss_defG_batch, loss_mine_batch = \
                     self.train_batch(images, labels)
                 loss_E_sum += loss_E_batch
                 loss_advG_sum += loss_advG_batch
                 loss_defG_sum += loss_defG_batch
+                loss_mine_sum += loss_mine_batch
                 pgd_acc_li_sum.append(pgd_acc_li_batch)
                 pgd_nat_acc_li_sum.append(pgd_nat_acc_li_batch)
 
             # print statistics
             num_batch = len(train_dataloader)
-            print("epoch %d:\nloss_E: %.5f, loss_advG: %.5f, loss_defG: %.5f" %
+            print("epoch %d:\nloss_E: %.5f, loss_advG: %.5f, loss_defG: %.5f, loss_mine: %.5f" %
                   (epoch, loss_E_sum/num_batch, loss_advG_sum/num_batch,
-                   loss_defG_sum/num_batch))
+                   loss_defG_sum/num_batch, loss_mine_sum/num_batch))
 
             pgd_acc_li_sum = np.mean(np.array(pgd_acc_li_sum), axis=0)
             for idx in range(len(self.pgd_iter)):
@@ -261,6 +293,7 @@ class AdvGAN_Attack:
                 self.writer.add_scalar('loss_E', loss_E_sum/num_batch, epoch)
                 self.writer.add_scalar('loss_advG', loss_advG_sum/num_batch, epoch)
                 self.writer.add_scalar('loss_defG', loss_defG_sum/num_batch, epoch)
+                self.writer.add_scalar('loss_mine', loss_mine_sum/num_batch, epoch)
                 for idx in range(len(self.pgd_iter)):
                     self.writer.add_scalar('pgd_acc_%d' % (self.pgd_iter[idx]), pgd_acc_li_sum[idx], epoch)
                     self.writer.add_scalar('pgd_nat_acc_%d' % (self.pgd_iter[idx]), pgd_nat_acc_li_sum[idx], epoch)
@@ -270,9 +303,11 @@ class AdvGAN_Attack:
                 E_file_name = self.models_path + self.model_name + 'E_epoch_' + str(epoch) + '.pth'
                 advG_file_name = self.models_path + self.model_name + 'advG_epoch_' + str(epoch) + '.pth'
                 defG_file_name = self.models_path + self.model_name + 'defG_epoch_' + str(epoch) + '.pth'
+                mine_file_name = self.models_path + self.model_name + 'mine_epoch_' + str(epoch) + '.pth'
                 torch.save(self.E.state_dict(), E_file_name)
                 torch.save(self.advG.state_dict(), advG_file_name)
                 torch.save(self.defG.state_dict(), defG_file_name)
+                torch.save(self.mine.state_dict(), mine_file_name)
 
         if self.writer:
             self.writer.close()
