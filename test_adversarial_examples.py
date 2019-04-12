@@ -51,10 +51,14 @@ def tester(dataset, dataloader, device, target_model, E, defG, advG, eps, out_pa
         test_img, test_label = data
         test_img, test_label = test_img.to(device), test_label.to(device)
 
+        target_labels = torch.randint_like(test_label, 0, 10)
+        target_one_hot = torch.eye(10, device=device)[target_labels]
+        target_one_hot = target_one_hot.view(-1, 10, 1, 1)
+
         # prep images
         x_encoded = E(test_img)
 
-        adv_noise = advG(x_encoded)
+        adv_noise = advG(x_encoded, target_one_hot)
         adv_img = adv_noise * eps + test_img
         adv_img = torch.clamp(adv_img, 0, 1)
 
@@ -263,7 +267,7 @@ if __name__ == '__main__':
     E.eval()
 
     advG_path = models_path + model_name + 'advG_epoch_{}.pth'.format(epoch)
-    advG = models.Generator(adv=True).to(device)
+    advG = models.Generator(y_dim=10, adv=True).to(device)
     advG.load_state_dict(torch.load(advG_path, map_location=device))
     if args.parameters_count:
         print('number of parameters(advG):', parameters_count(advG))

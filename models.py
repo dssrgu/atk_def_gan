@@ -53,6 +53,7 @@ class Discriminator(nn.Module):
 
 class Generator(nn.Module):
     def __init__(self,
+                 y_dim=10,
                  adv=True,
                  ):
         super(Generator, self).__init__()
@@ -61,21 +62,35 @@ class Generator(nn.Module):
 
         input_c = 128
 
+        y_decoder_lis = [
+            nn.ConvTranspose2d(y_dim, input_c, kernel_size=7, stride=1, padding=0, output_padding=0, bias=True),
+            nn.BatchNorm2d(input_c),
+            nn.ReLU(),
+        ]
+
+        if adv:
+            input_c *= 2
+
         decoder_lis = [
-            nn.ConvTranspose2d(input_c, 64, kernel_size=5, stride=2, padding=2, output_padding=1, bias=False),
+            nn.ConvTranspose2d(input_c, 64, kernel_size=5, stride=2, padding=2, output_padding=1, bias=True),
             nn.BatchNorm2d(64),
             nn.ReLU(),
-            nn.ConvTranspose2d(64, 1, kernel_size=5, stride=2, padding=2, output_padding=1, bias=False),
+            nn.ConvTranspose2d(64, 1, kernel_size=5, stride=2, padding=2, output_padding=1, bias=True),
         ]
 
         tanh_lis = [
             nn.Tanh(),
         ]
 
+        self.y_decoder = nn.Sequential(*y_decoder_lis)
         self.decoder = nn.Sequential(*decoder_lis)
         self.tanh = nn.Sequential(*tanh_lis)
 
-    def forward(self, z):
+    def forward(self, z, y=None):
+
+        if self.adv:
+            y = self.y_decoder(y)
+            z = torch.cat([z, y], dim=1)
 
         z = self.decoder(z)
 
