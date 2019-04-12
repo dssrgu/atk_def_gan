@@ -19,10 +19,10 @@ QOS_TYPE = 'normal'  # 'normal' or 'highprio'
 
 PARAM_DICT = {
     '--seeds': [i for i in range(1)],
-    '--E_lr': [0.1, 0.01, 0.001],
+    '--E_lr': [0.01, 0.001],
     '--defG_lr': [0.1, 0.01],
-    '--advG_lr': [0.01, 0.001],
-    '--mine_lr': [0.0001],
+    '--advG_lr': [0.001, 0.0001],
+    '--mine_lr': [0.001, 0.0001, 0.00001],
     '--overwrite': ['False'],
     '--logging': ['True'],
 }
