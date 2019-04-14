@@ -26,7 +26,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--log_base_dir', default='mnist/data', type=str)
 parser.add_argument('--seeds', default=0, type=int)
 parser.add_argument('--E_lr', default=0.01, type=float)
-parser.add_argument('--advG_lr', default=0.0001, type=float)
+parser.add_argument('--advG_lr', default=0.001, type=float)
 parser.add_argument('--defG_lr', default=0.1, type=float)
 parser.add_argument('--logging', default='False', type=boolean_string)
 parser.add_argument('--overwrite', default='True', type=boolean_string)
@@ -41,14 +41,16 @@ model_name = name_maker(args)
 # tensorboard writer
 if args.logging:
     log_base_dir = args.log_base_dir + '/' + model_name
-    writer = SummaryWriter(log_base_dir)
     print("logging at:", log_base_dir)
-
+    
     # overwrite?
-    if not os.path.exists(log_base_dir) and not args.overwrite:
+    if os.path.exists(log_base_dir) and not args.overwrite:
         print()
         print('result already exists!')
         exit()
+    
+    writer = SummaryWriter(log_base_dir)
+
 else:
     writer = None
 

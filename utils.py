@@ -27,6 +27,7 @@ def name_maker(args):
     model_name = 'E{}'.format(args.E_lr) + \
         '_advG{}'.format(args.advG_lr) + \
         '_defG{}'.format(args.defG_lr) + \
+        '_targeted' + \
         '_{}'.format(args.seeds) + '/'
 
     return model_name
