@@ -1,28 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
-
-# Target Model definition
-class MNIST_target_net(nn.Module):
-    def __init__(self):
-        super(MNIST_target_net, self).__init__()
-        self.conv1 = nn.Conv2d(1, 32, kernel_size=5, padding=2)
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=5, padding=2)
-
-        self.fc1 = nn.Linear(64*7*7, 10)
-
-    def forward(self, x):
-        assert not torch.any(x > 1)
-        assert not torch.any(x < 0)
-        x = F.relu(self.conv1(x))
-        x = F.max_pool2d(x, 2)
-        x = F.relu(self.conv2(x))
-        x = F.max_pool2d(x, 2)
-        x = x.view(-1, 64*7*7)
-        x = self.fc1(x)
-        return x
-
+from torchsummary import summary
 
 # not used
 class Discriminator(nn.Module):
@@ -60,10 +39,10 @@ class Generator(nn.Module):
 
         self.adv = adv
 
-        input_c = 128
+        input_c = 256
 
         y_decoder_lis = [
-            nn.ConvTranspose2d(y_dim, input_c, kernel_size=7, stride=1, padding=0, output_padding=0, bias=True),
+            nn.ConvTranspose2d(y_dim, input_c, kernel_size=8, stride=1, padding=0, output_padding=0, bias=True),
             nn.BatchNorm2d(input_c),
             nn.ReLU(),
         ]
@@ -71,18 +50,29 @@ class Generator(nn.Module):
         if adv:
             input_c *= 2
 
+        bottle_neck_lis = [
+            ResnetBlock(input_c, input_c),
+            ResnetBlock(input_c, input_c),
+            ResnetBlock(input_c, input_c),
+        ]
+
         decoder_lis = [
-            nn.ConvTranspose2d(input_c, 64, kernel_size=5, stride=2, padding=2, output_padding=1, bias=True),
+            nn.ConvTranspose2d(input_c, 128, kernel_size=3, stride=2, padding=1, output_padding=1, bias=True),
+            nn.BatchNorm2d(128),
+            nn.ReLU(),
+            nn.ConvTranspose2d(128, 64, kernel_size=3, stride=2, padding=1, output_padding=1, bias=True),
             nn.BatchNorm2d(64),
             nn.ReLU(),
-            nn.ConvTranspose2d(64, 1, kernel_size=5, stride=2, padding=2, output_padding=1, bias=True),
+            nn.Conv2d(64, 3, kernel_size=3, stride=1, padding=1, bias=True),
         ]
+
 
         tanh_lis = [
             nn.Tanh(),
         ]
 
         self.y_decoder = nn.Sequential(*y_decoder_lis)
+        self.bottle_neck = nn.Sequential(*bottle_neck_lis)
         self.decoder = nn.Sequential(*decoder_lis)
         self.tanh = nn.Sequential(*tanh_lis)
 
@@ -92,6 +82,7 @@ class Generator(nn.Module):
             y = self.y_decoder(y)
             z = torch.cat([z, y], dim=1)
 
+        z = self.bottle_neck(z)
         z = self.decoder(z)
 
         if self.adv:
@@ -102,24 +93,35 @@ class Generator(nn.Module):
 
 class Encoder(nn.Module):
     def __init__(self,
-                 en_input_nc,
+                 en_input_nc=3,
                  ):
         super(Encoder, self).__init__()
 
         encoder_lis = [
-            # MNIST:1*28*28
-            nn.Conv2d(en_input_nc, 64, kernel_size=5, stride=2, padding=2, bias=True),
+            # cifar10: 3*32*32
+            nn.Conv2d(en_input_nc, 64, kernel_size=3, stride=1, padding=1, bias=True),
             nn.BatchNorm2d(64),
             nn.ReLU(),
-            nn.Conv2d(64, 128, kernel_size=5, stride=2, padding=2, bias=True),
+            nn.Conv2d(64, 64, kernel_size=3, stride=2, padding=1, bias=True),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1, bias=True),
             nn.BatchNorm2d(128),
             nn.ReLU(),
         ]
 
+        bottle_neck_lis = [
+            ResnetBlock(128, 256),
+            ResnetBlock(256, 256),
+            ResnetBlock(256, 256),
+            ]
+
         self.encoder = nn.Sequential(*encoder_lis)
+        self.bottle_neck = nn.Sequential(*bottle_neck_lis)
 
     def forward(self, x):
         x = self.encoder(x)
+        x = self.bottle_neck(x)
 
         return x
 
@@ -127,11 +129,19 @@ class Encoder(nn.Module):
 # Define a resnet block
 # modified from https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/blob/master/models/networks.py
 class ResnetBlock(nn.Module):
-    def __init__(self, dim, padding_type='reflect', norm_layer=nn.BatchNorm2d, use_dropout=False, use_bias=False):
+    def __init__(self, in_dim, out_dim, padding_type='reflect', norm_layer=nn.BatchNorm2d, use_dropout=False, use_bias=False):
         super(ResnetBlock, self).__init__()
-        self.conv_block = self.build_conv_block(dim, padding_type, norm_layer, use_dropout, use_bias)
+        self.conv_block = self.build_conv_block(in_dim, out_dim, padding_type, norm_layer, use_dropout, use_bias)
+        self.rescale = in_dim != out_dim
 
-    def build_conv_block(self, dim, padding_type, norm_layer, use_dropout, use_bias):
+        project_lis = [
+            nn.Conv2d(in_dim, out_dim, kernel_size=1, padding=0, bias=use_bias),
+            nn.BatchNorm2d(out_dim),
+        ]
+
+        self.project = nn.Sequential(*project_lis)
+
+    def build_conv_block(self, in_dim, out_dim, padding_type, norm_layer, use_dropout, use_bias):
         conv_block = []
         p = 0
         if padding_type == 'reflect':
@@ -143,8 +153,8 @@ class ResnetBlock(nn.Module):
         else:
             raise NotImplementedError('padding [%s] is not implemented' % padding_type)
 
-        conv_block += [nn.Conv2d(dim, dim, kernel_size=3, padding=p, bias=use_bias),
-                       norm_layer(dim),
+        conv_block += [nn.Conv2d(in_dim, out_dim, kernel_size=3, padding=p, bias=use_bias),
+                       norm_layer(out_dim),
                        nn.ReLU(True)]
         if use_dropout:
             conv_block += [nn.Dropout(0.5)]
@@ -159,11 +169,25 @@ class ResnetBlock(nn.Module):
         else:
             raise NotImplementedError('padding [%s] is not implemented' % padding_type)
 
-        conv_block += [nn.Conv2d(dim, dim, kernel_size=3, padding=p, bias=use_bias),
-                       norm_layer(dim)]
+        conv_block += [nn.Conv2d(out_dim, out_dim, kernel_size=3, padding=p, bias=use_bias),
+                       norm_layer(out_dim)]
 
         return nn.Sequential(*conv_block)
 
     def forward(self, x):
-        out = x + self.conv_block(x)
+        if self.rescale:
+            out = self.project(x) + self.conv_block(x)
+        else:
+            out = x + self.conv_block(x)
         return out
+
+
+if __name__ == '__main__':
+    encoder = Encoder()
+    adv_generator = Generator(adv=True)
+    def_generator = Generator(adv=False)
+
+    summary(encoder, (3, 32, 32))
+    #summary(adv_generator, (256, 8, 8), (10, 1, 1))
+    summary(def_generator, (256, 8, 8))
+

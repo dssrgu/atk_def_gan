@@ -1,4 +1,5 @@
 import torch.nn as nn
+import torchvision.transforms as transforms
 import torch
 
 
@@ -23,6 +24,8 @@ def weights_init(m):
 def parameters_count(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
+
+# model name maker
 def name_maker(args):
     model_name = 'E{}'.format(args.E_lr) + \
         '_advG{}'.format(args.advG_lr) + \
@@ -31,4 +34,16 @@ def name_maker(args):
         '_{}'.format(args.seeds) + '/'
 
     return model_name
+
+
+# image normalizer
+def normalizer():
+
+    transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[x/255.0 for x in [125.3, 123.0, 113.9]],
+                                std=[x/255.0 for x in [63.0, 62.1, 66.7]]),
+    ])
+
+    return transform
 

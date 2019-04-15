@@ -3,14 +3,15 @@ import torchvision.datasets
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 from advGAN import AdvGAN_Attack
-from models import MNIST_target_net
+from wideresnet import WideResNet
 import argparse
 from tensorboardX import SummaryWriter
-from utils import boolean_string, name_maker
+from utils import boolean_string, name_maker, normalizer
 import os
 
 use_cuda = True
-image_nc = 1
+image_nc = 3
+model_num_labels = 10
 batch_size = 128
 BOX_MIN = 0
 BOX_MAX = 1
@@ -63,15 +64,16 @@ if not os.path.exists(models_path + model_name):
 # Define what device we are using print("CUDA Available: ",torch.cuda.is_available())
 device = torch.device("cuda" if (use_cuda and torch.cuda.is_available()) else "cpu")
 
-pretrained_model = "./MNIST_target_model.pth"
-targeted_model = MNIST_target_net().to(device)
-targeted_model.load_state_dict(torch.load(pretrained_model, map_location=device))
+pretrained_model = "./model_best.pth.tar"
+targeted_model = WideResNet().to(device)
+checkpoint = torch.load(pretrained_model, map_location=device)
+targeted_model.load_state_dict(checkpoint['state_dict'])
 targeted_model.eval()
-model_num_labels = 10
+normalizer = normalizer()
 
 # MNIST train dataset and dataloader declaration
-mnist_dataset = torchvision.datasets.MNIST('./dataset', train=True, transform=transforms.ToTensor(), download=True)
-dataloader = DataLoader(mnist_dataset, batch_size=batch_size, shuffle=True, num_workers=1)
+cifar_dataset = torchvision.datasets.CIFAR10('./dataset', train=True, transform=normalizer, download=True)
+dataloader = DataLoader(cifar_dataset, batch_size=batch_size, shuffle=True, num_workers=1)
 advGAN = AdvGAN_Attack(device,
                        targeted_model,
                        model_num_labels,

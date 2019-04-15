@@ -5,14 +5,14 @@ from torch.utils.data import DataLoader
 from torchvision.utils import make_grid, save_image
 import models
 import os
-from models import MNIST_target_net
+from wideresnet import WideResNet
 from pgd_attack import PGD
 import argparse
 import numpy as np
 from utils import boolean_string, parameters_count, name_maker
 
 use_cuda = True
-image_nc = 1
+image_nc = 3
 batch_size = 128
 models_path = './models/'
 out_path = './out/'
@@ -249,9 +249,10 @@ if __name__ == '__main__':
     print()
 
     # load the pretrained model
-    model_path = "./MNIST_target_model.pth"
-    target_model = MNIST_target_net().to(device)
-    target_model.load_state_dict(torch.load(model_path, map_location=device))
+    pretrained_model = "./model_best.pth.tar"
+    target_model = WideResNet().to(device)
+    checkpoint = torch.load(pretrained_model, map_location=device)
+    target_model.load_state_dict(checkpoint)
     if args.parameters_count:
         print('number of parameters(model):', parameters_count(target_model))
     target_model.eval()
@@ -260,7 +261,7 @@ if __name__ == '__main__':
 
     # load encoder & generators
     E_path = models_path + model_name + 'E_epoch_{}.pth'.format(epoch)
-    E = models.Encoder(en_input_nc).to(device)
+    E = models.Encoder().to(device)
     E.load_state_dict(torch.load(E_path, map_location=device))
     if args.parameters_count:
         print('number of parameters(E):', parameters_count(E))
