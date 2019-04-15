@@ -126,13 +126,15 @@ dmypy.json
 
 # custom
 *.out
-models/
+*/models/
 *.swp
-.idea/
-out/
-BUILD
-WORKSPACE
-bazel*
+*.idea/
+*/out/
+*/BUILD
+*/WORKSPACE
+*/bazel*
 *.test_exp
 *__.py
-.DS_Store
+*/.DS_Store
+*/log
+*/dataset
