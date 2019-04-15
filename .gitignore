@@ -135,6 +135,6 @@ dmypy.json
 */bazel*
 *.test_exp
 *__.py
-*/.DS_Store
+.DS_Store
 */log
 */dataset
