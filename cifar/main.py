@@ -43,23 +43,20 @@ model_name = name_maker(args)
 if args.logging:
     log_base_dir = args.log_base_dir + '/' + model_name
     print("logging at:", log_base_dir)
-    
-    # overwrite?
-    if os.path.exists(log_base_dir) and not args.overwrite:
-        print()
-        print('result already exists!')
-        exit()
-    
     writer = SummaryWriter(log_base_dir)
-
 else:
     writer = None
-
 
 if not os.path.exists(models_path):
     os.makedirs(models_path)
 if not os.path.exists(models_path + model_name):
     os.makedirs(models_path + model_name)
+else:
+    # overwrite?
+    if not args.overwrite and len(os.listdir(models_path + model_name)) != 0:
+        print()
+        print('result already exists!')
+        exit()
 
 # Define what device we are using print("CUDA Available: ",torch.cuda.is_available())
 device = torch.device("cuda" if (use_cuda and torch.cuda.is_available()) else "cpu")

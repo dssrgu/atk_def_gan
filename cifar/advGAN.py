@@ -213,6 +213,7 @@ class AdvGAN_Attack:
     # main training function
     def train(self, train_dataloader, epochs):
         for epoch in range(1, epochs+1):
+            print('epoch:', epoch)
 
             if epoch == 50:
                 self.optimizer_E = torch.optim.Adam(self.E.parameters(),
@@ -236,6 +237,7 @@ class AdvGAN_Attack:
             pgd_nat_acc_li_sum = []
 
             for i, data in enumerate(train_dataloader, start=0):
+                print('batch:', i)
                 images, labels = data
                 images, labels = images.to(self.device), labels.to(self.device)
 
