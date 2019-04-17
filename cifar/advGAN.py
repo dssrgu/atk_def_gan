@@ -5,7 +5,7 @@ import torch.nn.functional as F
 #import torchvision
 from test_adversarial_examples import test_full
 from pgd_attack import PGD
-from utils import weights_init
+from utils import weights_init, normalized_eval
 
 class AdvGAN_Attack:
     def __init__(self,
@@ -62,27 +62,41 @@ class AdvGAN_Attack:
                                                lr=self.advG_lr)
 
     # generate images for training
-    def gen_images(self, x, labels):
+    def gen_images(self, x, labels, adv=True, def_adv=True, def_nat=True):
+
+        results = []
 
         # random target labels
         target_labels = torch.randint_like(labels, 0, self.model_num_labels)
         target_one_hot = torch.eye(self.model_num_labels, device=self.device)[target_labels]
         target_one_hot = target_one_hot.view(-1, self.model_num_labels, 1, 1)
 
-        # make adv image
-        adv_noise = self.advG(self.E(x), target_one_hot)
-        adv_images = adv_noise * self.eps + x
-        adv_images = torch.clamp(adv_images, self.box_min, self.box_max)
+        x_encoded = self.E(x)
+        
+        if adv or def_adv:
+            # make adv image
+            adv_images = self.advG(x_encoded, target_one_hot) * self.eps + x
+            adv_images = torch.clamp(adv_images, self.box_min, self.box_max)
+            
+            results.append(adv_images)
 
-        # make def(adv) image
-        def_adv_images = self.defG(self.E(adv_images)) + adv_images
-        def_adv_images = torch.clamp(def_adv_images, self.box_min, self.box_max)
+        if def_adv:
+            # make def(adv) image
+            def_adv_images = self.defG(self.E(adv_images)) + adv_images
+            def_adv_images = torch.clamp(def_adv_images, self.box_min, self.box_max)
 
-        # make def(nat) image
-        def_images = self.defG(self.E(x)) + x
-        def_images = torch.clamp(def_images, self.box_min, self.box_max)
+            results.append(def_adv_images)
 
-        return adv_images, def_adv_images, def_images, target_labels
+        if def_nat:
+            # make def(nat) image
+            def_images = self.defG(x_encoded) + x
+            def_images = torch.clamp(def_images, self.box_min, self.box_max)
+
+            results.append(def_images)
+
+        results.append(target_labels)
+
+        return results
 
     # performance tester
     def test(self):
@@ -97,7 +111,7 @@ class AdvGAN_Attack:
         self.defG.train()
 
     # train single batch
-    def train_batch(self, x, labels):
+    def train_batch(self, x, labels, batch_num):
 
         # optimize E
         for i in range(1):
@@ -108,15 +122,15 @@ class AdvGAN_Attack:
             adv_images, def_adv_images, def_images, target_labels = self.gen_images(x, labels)
 
             # adv loss
-            logits_adv = self.model(adv_images)
+            logits_adv = normalized_eval(adv_images, self.model)
             loss_adv = F.cross_entropy(logits_adv, target_labels)
 
             # def(adv) loss
-            logits_def_adv = self.model(def_adv_images)
+            logits_def_adv = normalized_eval(def_adv_images, self.model)
             loss_def_adv = F.cross_entropy(logits_def_adv, labels)
 
             # def(nat) loss
-            logits_def = self.model(def_images)
+            logits_def = normalized_eval(def_images, self.model)
             loss_def = F.cross_entropy(logits_def, labels)
 
             # backprop
@@ -131,14 +145,14 @@ class AdvGAN_Attack:
 
             # clear grad
             self.optimizer_advG.zero_grad()
-            adv_images, def_adv_images, _, target_labels = self.gen_images(x, labels)
+            adv_images, def_adv_images, target_labels = self.gen_images(x, labels, def_nat=False)
 
             # adv loss
-            logits_adv = self.model(adv_images)
+            logits_adv = normalized_eval(adv_images, self.model)
             loss_adv = F.cross_entropy(logits_adv, target_labels)
 
             # def(adv) loss
-            logits_def_adv = self.model(def_adv_images)
+            logits_def_adv = normalized_eval(def_adv_images, self.model)
             loss_def_adv = F.cross_entropy(logits_def_adv, target_labels)
 
             # backprop
@@ -154,14 +168,14 @@ class AdvGAN_Attack:
             # clear grad
             self.optimizer_defG.zero_grad()
 
-            _, def_adv_images, def_images, _ = self.gen_images(x, labels)
+            _, def_adv_images, def_images, _ = self.gen_images(x, labels, adv=False)
 
             # def(adv) loss
-            logits_def_adv = self.model(def_adv_images)
+            logits_def_adv = normalized_eval(def_adv_images, self.model)
             loss_def_adv = F.cross_entropy(logits_def_adv, labels)
 
             # def loss
-            logits_def = self.model(def_images)
+            logits_def = normalized_eval(def_images, self.model)
             loss_def = F.cross_entropy(logits_def, labels)
 
             # backprop
@@ -173,39 +187,45 @@ class AdvGAN_Attack:
 
         # pgd performance check
 
-        self.E.eval()
-        self.defG.eval()
 
-        pgd_acc_li = []
-        pgd_nat_acc_li = []
+        if batch_num == 0:
 
-        for itr in self.pgd_iter:
+            self.E.eval()
+            self.defG.eval()
 
-            pgd_img = self.pgd.perturb(x, labels, itr=itr)
-            pgd_nat_img = self.pgd.perturb(x, labels, itr=0)
+            pgd_acc_li = []
+            pgd_nat_acc_li = []
+            for itr in self.pgd_iter:
 
-            for _ in range(itr):
-                pgd_img = self.defG(self.E(pgd_img)) + pgd_img
-                pgd_img = torch.clamp(pgd_img, self.box_min, self.box_max)
-            
-                #obsufcated check
-                pgd_nat_img = self.defG(self.E(pgd_nat_img)) + pgd_nat_img
-                pgd_nat_img = torch.clamp(pgd_nat_img, self.box_min, self.box_max)
+                pgd_img = self.pgd.perturb(x, labels, itr=itr)
+                pgd_nat_img = self.pgd.perturb(x, labels, itr=0)
 
-            pred = torch.argmax(self.model(pgd_img), 1)
-            num_correct = torch.sum(pred == labels, 0)
-            pgd_acc = num_correct.item()/len(labels)
+                for _ in range(itr):
+                    pgd_img = self.defG(self.E(pgd_img)) + pgd_img
+                    pgd_img = torch.clamp(pgd_img, self.box_min, self.box_max)
+                
+                    #obsufcated check
+                    pgd_nat_img = self.defG(self.E(pgd_nat_img)) + pgd_nat_img
+                    pgd_nat_img = torch.clamp(pgd_nat_img, self.box_min, self.box_max)
 
-            pgd_acc_li.append(pgd_acc)
-            
-            pred = torch.argmax(self.model(pgd_nat_img), 1)
-            num_correct = torch.sum(pred == labels, 0)
-            pgd_nat_acc = num_correct.item()/len(labels)
+                pred = torch.argmax(normalized_eval(pgd_img, self.model), 1)
+                num_correct = torch.sum(pred == labels, 0)
+                pgd_acc = num_correct.item()/len(labels)
 
-            pgd_nat_acc_li.append(pgd_nat_acc)
+                pgd_acc_li.append(pgd_acc)
+                
+                pred = torch.argmax(normalized_eval(pgd_nat_img, self.model), 1)
+                num_correct = torch.sum(pred == labels, 0)
+                pgd_nat_acc = num_correct.item()/len(labels)
 
-        self.E.train()
-        self.defG.train()
+                pgd_nat_acc_li.append(pgd_nat_acc)
+
+            self.E.train()
+            self.defG.train()
+
+        else:
+            pgd_acc_li = None
+            pgd_nat_acc_li = None
 
         return pgd_acc_li, pgd_nat_acc_li, torch.sum(loss_E).item(), torch.sum(loss_advG).item(),\
                torch.sum(loss_defG).item()
@@ -213,7 +233,6 @@ class AdvGAN_Attack:
     # main training function
     def train(self, train_dataloader, epochs):
         for epoch in range(1, epochs+1):
-            print('epoch:', epoch)
 
             if epoch == 50:
                 self.optimizer_E = torch.optim.Adam(self.E.parameters(),
@@ -237,17 +256,17 @@ class AdvGAN_Attack:
             pgd_nat_acc_li_sum = []
 
             for i, data in enumerate(train_dataloader, start=0):
-                print('batch:', i)
                 images, labels = data
                 images, labels = images.to(self.device), labels.to(self.device)
 
                 pgd_acc_li_batch, pgd_nat_acc_li_batch, loss_E_batch, loss_advG_batch, loss_defG_batch = \
-                    self.train_batch(images, labels)
+                    self.train_batch(images, labels, i)
                 loss_E_sum += loss_E_batch
                 loss_advG_sum += loss_advG_batch
                 loss_defG_sum += loss_defG_batch
-                pgd_acc_li_sum.append(pgd_acc_li_batch)
-                pgd_nat_acc_li_sum.append(pgd_nat_acc_li_batch)
+                if pgd_acc_li_batch:
+                    pgd_acc_li_sum.append(pgd_acc_li_batch)
+                    pgd_nat_acc_li_sum.append(pgd_nat_acc_li_batch)
 
             # print statistics
             num_batch = len(train_dataloader)
@@ -269,6 +288,7 @@ class AdvGAN_Attack:
                 self.writer.add_scalar('loss_E', loss_E_sum/num_batch, epoch)
                 self.writer.add_scalar('loss_advG', loss_advG_sum/num_batch, epoch)
                 self.writer.add_scalar('loss_defG', loss_defG_sum/num_batch, epoch)
+
                 for idx in range(len(self.pgd_iter)):
                     self.writer.add_scalar('pgd_acc_%d' % (self.pgd_iter[idx]), pgd_acc_li_sum[idx], epoch)
                     self.writer.add_scalar('pgd_nat_acc_%d' % (self.pgd_iter[idx]), pgd_nat_acc_li_sum[idx], epoch)

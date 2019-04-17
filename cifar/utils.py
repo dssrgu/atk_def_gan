@@ -37,13 +37,10 @@ def name_maker(args):
 
 
 # image normalizer
-def normalizer():
+def normalized_eval(x, target_model, batch_size=128):
+    x_copy = x.clone()
+    batch_size = x_copy.size()[0]
+    x_copy = torch.stack([transforms.functional.normalize(x_copy[i], mean=[mu/255.0 for mu in [125.3, 123.0, 113.9]],
+                                                          std=[sig/255.0 for sig in [63.0, 62.1, 66.7]]) for i in range(batch_size)])
 
-    transform = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[x/255.0 for x in [125.3, 123.0, 113.9]],
-                                std=[x/255.0 for x in [63.0, 62.1, 66.7]]),
-    ])
-
-    return transform
-
+    return target_model(x_copy)

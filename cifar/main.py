@@ -6,7 +6,7 @@ from advGAN import AdvGAN_Attack
 from wideresnet import WideResNet
 import argparse
 from tensorboardX import SummaryWriter
-from utils import boolean_string, name_maker, normalizer
+from utils import boolean_string, name_maker
 import os
 
 use_cuda = True
@@ -15,7 +15,7 @@ model_num_labels = 10
 batch_size = 128
 BOX_MIN = 0
 BOX_MAX = 1
-eps = 0.3
+eps = 0.03125 # 8/256
 pgd_iter = [1]
 # model save path
 models_path = './models/'
@@ -66,10 +66,9 @@ targeted_model = WideResNet().to(device)
 checkpoint = torch.load(pretrained_model, map_location=device)
 targeted_model.load_state_dict(checkpoint['state_dict'])
 targeted_model.eval()
-normalizer = normalizer()
 
 # MNIST train dataset and dataloader declaration
-cifar_dataset = torchvision.datasets.CIFAR10('./dataset', train=True, transform=normalizer, download=True)
+cifar_dataset = torchvision.datasets.CIFAR10('./dataset', train=True, transform=transforms.ToTensor(), download=True)
 dataloader = DataLoader(cifar_dataset, batch_size=batch_size, shuffle=True, num_workers=1)
 advGAN = AdvGAN_Attack(device,
                        targeted_model,

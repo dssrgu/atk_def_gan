@@ -10,7 +10,7 @@ def launch_tasks(num_procs_on_gpu,
                  param_dict,
                  partition='mllab',
                  qos='normal',
-                 timeout='48:00:00',
+                 timeout='96:00:00',
                  sbatch_additional_params=''):
     sbp_dict = get_sbatch_params(num_procs_on_gpu)
     nprocs = sbp_dict['nprocs']

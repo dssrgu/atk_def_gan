@@ -9,7 +9,7 @@ from wideresnet import WideResNet
 from pgd_attack import PGD
 import argparse
 import numpy as np
-from utils import boolean_string, parameters_count, name_maker
+from utils import boolean_string, parameters_count, name_maker, normalized_eval
 
 use_cuda = True
 image_nc = 3
@@ -22,7 +22,7 @@ out_path = './out/'
 def tester(dataset, dataloader, device, target_model, E, defG, advG, eps, out_path, model_name, label_count=True, save_img=False):
     
     # load PGD
-    pgd = PGD(target_model, E, defG, device)
+    pgd = PGD(target_model, E, defG, device, eps)
 
     num_correct_adv = 0
     num_correct_pgd = 0
@@ -83,13 +83,13 @@ def tester(dataset, dataloader, device, target_model, E, defG, advG, eps, out_pa
         def_pgd_nat_img = torch.clamp(def_pgd_nat_img, 0, 1)
 
         # calculate acc.
-        pred = torch.argmax(target_model(test_img), 1)
-        pred_adv = torch.argmax(target_model(adv_img), 1)
-        pred_pgd = torch.argmax(target_model(pgd_nat_img), 1)
-        pred_def_adv = torch.argmax(target_model(def_adv_img), 1)
-        pred_def = torch.argmax(target_model(def_img), 1)
-        pred_def_pgd = torch.argmax(target_model(def_pgd_img), 1)
-        pred_def_pgd_nat = torch.argmax(target_model(def_pgd_nat_img), 1)
+        pred = torch.argmax(normalized_eval(test_img, target_model), 1)
+        pred_adv = torch.argmax(normalized_eval(adv_img, target_model), 1)
+        pred_pgd = torch.argmax(normalized_eval(pgd_nat_img, target_model), 1)
+        pred_def_adv = torch.argmax(normalized_eval(def_adv_img, target_model), 1)
+        pred_def = torch.argmax(normalized_eval(def_img, target_model), 1)
+        pred_def_pgd = torch.argmax(normalized_eval(def_pgd_img, target_model), 1)
+        pred_def_pgd_nat = torch.argmax(normalized_eval(def_pgd_nat_img, target_model), 1)
 
         num_correct += torch.sum(pred == test_label, 0)
         num_correct_adv += torch.sum(pred_adv == test_label, 0)
@@ -207,19 +207,19 @@ def tester(dataset, dataloader, device, target_model, E, defG, advG, eps, out_pa
 def test_full(device, target_model, E, defG, advG, eps, out_path, model_name, label_count=True, save_img=True):
     
     # test adversarial examples in MNIST training dataset
-    mnist_dataset = torchvision.datasets.MNIST('./dataset', train=True, transform=transforms.ToTensor(), download=True)
-    train_dataloader = DataLoader(mnist_dataset, batch_size=batch_size, shuffle=False, num_workers=1)
+    cifar_dataset = torchvision.datasets.CIFAR10('./dataset', train=True, transform=transforms.ToTensor(), download=True)
+    train_dataloader = DataLoader(cifar_dataset, batch_size=batch_size, shuffle=False, num_workers=1)
 
-    print('MNIST training dataset:')
-    tester(mnist_dataset, train_dataloader, device, target_model, E, defG, advG, eps, out_path, model_name, label_count, False)
+    print('CIFAR10 training dataset:')
+    tester(cifar_dataset, train_dataloader, device, target_model, E, defG, advG, eps, out_path, model_name, label_count, False)
 
     # test adversarial examples in MNIST testing dataset
-    mnist_dataset_test = torchvision.datasets.MNIST('./dataset', train=False, transform=transforms.ToTensor(),
+    cifar_dataset_test = torchvision.datasets.CIFAR10('./dataset', train=False, transform=transforms.ToTensor(),
                                                     download=True)
-    test_dataloader = DataLoader(mnist_dataset_test, batch_size=batch_size, shuffle=False, num_workers=1)
+    test_dataloader = DataLoader(cifar_dataset_test, batch_size=batch_size, shuffle=False, num_workers=1)
 
-    print('MNIST test dataset:')
-    tester(mnist_dataset_test, test_dataloader, device, target_model, E, defG, advG, eps, out_path, model_name, label_count, save_img)
+    print('CIFAR10 test dataset:')
+    tester(cifar_dataset_test, test_dataloader, device, target_model, E, defG, advG, eps, out_path, model_name, label_count, save_img)
 
 
 if __name__ == '__main__':
@@ -232,7 +232,7 @@ if __name__ == '__main__':
     parser.add_argument('--E_lr', default=0.001, type=float)
     parser.add_argument('--advG_lr', default=0.001, type=float)
     parser.add_argument('--defG_lr', default=0.001, type=float)
-    parser.add_argument('--eps', default=0.3, type=float)
+    parser.add_argument('--eps', default=0.03125, type=float)
     parser.add_argument('--parameters_count', action='store_true')
     parser.add_argument('--labels_count', action='store_true')
 
