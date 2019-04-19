@@ -26,7 +26,6 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--log_base_dir', default='log', type=str)
 parser.add_argument('--seeds', default=0, type=int)
 parser.add_argument('--E_lr', default=0.01, type=float)
-parser.add_argument('--advG_lr', default=0.001, type=float)
 parser.add_argument('--defG_lr', default=0.1, type=float)
 parser.add_argument('--logging', default='False', type=boolean_string)
 parser.add_argument('--overwrite', default='True', type=boolean_string)
@@ -85,7 +84,6 @@ advGAN = AdvGAN_Attack(device,
                        model_name,
                        writer,
                        args.E_lr,
-                       args.advG_lr,
                        args.defG_lr)
 
 advGAN.train(dataloader, args.epochs)

@@ -21,7 +21,6 @@ PARAM_DICT = {
     '--seeds': [i for i in range(1)],
     '--E_lr': [0.1, 0.01, 0.001],
     '--defG_lr': [0.1, 0.01, 0.001],
-    '--advG_lr': [0.01, 0.001, 0.0001],
     '--overwrite': ['False'],
     '--logging': ['True'],
 }
