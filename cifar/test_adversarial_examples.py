@@ -13,7 +13,7 @@ from utils import boolean_string, parameters_count, name_maker, normalized_eval
 
 use_cuda = True
 image_nc = 3
-batch_size = 128
+batch_size = 64
 models_path = './models/'
 out_path = './out/'
 
@@ -47,6 +47,7 @@ def tester(dataset, dataloader, device, target_model, E, defG, advG, eps, out_pa
     pred_def_pgd_nat_full = []
 
     for i, data in enumerate(dataloader, 0):
+
         # load images
         test_img, test_label = data
         test_img, test_label = test_img.to(device), test_label.to(device)
@@ -99,6 +100,25 @@ def tester(dataset, dataloader, device, target_model, E, defG, advG, eps, out_pa
         num_correct_def_pgd += torch.sum(pred_def_pgd == test_label, 0)
         num_correct_def_pgd_nat += torch.sum(pred_def_pgd_nat == test_label, 0)
 
+        '''
+        l_one = np.mean(np.abs(adv_noise.cpu().detach().numpy()))
+        np.save('./out/noise/adv_noise.npy', adv_noise.cpu().detach().numpy())
+        print('l-one of adv noise:%f' % (l_one))
+        l_one = np.mean(np.abs(def_noise.cpu().detach().numpy()))
+        np.save('./out/noise/def_noise.npy', def_noise.cpu().detach().numpy())
+        print('l-one of def noise:%f' % (l_one))
+        l_one = np.mean(np.abs(def_adv_noise.cpu().detach().numpy()))
+        np.save('./out/noise/def_adv_noise.npy', def_adv_noise.cpu().detach().numpy())
+        print('l-one of def(adv) noise:%f' % (l_one))
+        l_one = np.mean(np.abs(def_pgd_noise.cpu().detach().numpy()))
+        np.save('./out/noise/def_pgd_noise.npy', def_pgd_noise.cpu().detach().numpy())
+        print('l-one of def(pgd) noise:%f' % (l_one))
+        l_one = np.mean(np.abs(def_pgd_nat_noise.cpu().detach().numpy()))
+        np.save('./out/noise/def_pgd_nat_noise.npy', def_pgd_nat_noise.cpu().detach().numpy())
+        print('l-one of def(pgd_nat) noise:%f' % (l_one))
+        exit()
+        '''
+
         if label_count:
             pred_adv_full.append(pred_adv)
             pred_pgd_full.append(pred_pgd)
@@ -143,6 +163,24 @@ def tester(dataset, dataloader, device, target_model, E, defG, advG, eps, out_pa
     print('l-inf of def(pgd) imgs:%f' % (l_inf))
     l_inf = np.amax(np.abs(def_pgd_nat_img.cpu().detach().numpy() - test_img.cpu().detach().numpy()))
     print('l-inf of def(pgd_nat) imgs:%f' % (l_inf))
+
+    print()
+
+    l_one = np.mean(np.abs(adv_noise.cpu().detach().numpy()))
+    np.save('./out/noise/adv_noise.npy', adv_noise.cpu().detach().numpy())
+    print('l-one of adv noise:%f' % (l_one))
+    l_one = np.mean(np.abs(def_noise.cpu().detach().numpy()))
+    np.save('./out/noise/def_noise.npy', def_noise.cpu().detach().numpy())
+    print('l-one of def noise:%f' % (l_one))
+    l_one = np.mean(np.abs(def_adv_noise.cpu().detach().numpy()))
+    np.save('./out/noise/def_adv_noise.npy', def_adv_noise.cpu().detach().numpy())
+    print('l-one of def(adv) noise:%f' % (l_one))
+    l_one = np.mean(np.abs(def_pgd_noise.cpu().detach().numpy()))
+    np.save('./out/noise/def_pgd_noise.npy', def_pgd_noise.cpu().detach().numpy())
+    print('l-one of def(pgd) noise:%f' % (l_one))
+    l_one = np.mean(np.abs(def_pgd_nat_noise.cpu().detach().numpy()))
+    np.save('./out/noise/def_pgd_nat_noise.npy', def_pgd_nat_noise.cpu().detach().numpy())
+    print('l-one of def(pgd_nat) noise:%f' % (l_one))
 
     print()
 
@@ -206,21 +244,31 @@ def tester(dataset, dataloader, device, target_model, E, defG, advG, eps, out_pa
 # train on both training and test set
 def test_full(device, target_model, E, defG, advG, eps, out_path, model_name, label_count=True, save_img=True):
     
-    # test adversarial examples in MNIST training dataset
+    # test adversarial examples in Cifar-10 training dataset
     cifar_dataset = torchvision.datasets.CIFAR10('./dataset', train=True, transform=transforms.ToTensor(), download=True)
     train_dataloader = DataLoader(cifar_dataset, batch_size=batch_size, shuffle=False, num_workers=1)
 
     print('CIFAR10 training dataset:')
     tester(cifar_dataset, train_dataloader, device, target_model, E, defG, advG, eps, out_path, model_name, label_count, False)
 
-    # test adversarial examples in MNIST testing dataset
+    # test adversarial examples in Cifar-10 testing dataset
+    cifar_dataset_test = torchvision.datasets.CIFAR10('./dataset', train=False, transform=transforms.ToTensor(), download=True)
+    test_dataloader = DataLoader(cifar_dataset_test, batch_size=batch_size, shuffle=False, num_workers=1)
+
+    print('CIFAR10 test dataset:')
+    tester(cifar_dataset_test, test_dataloader, device, target_model, E, defG, advG, eps, out_path, model_name, label_count, save_img)
+
+
+# train on only test set
+def test_test(device, target_model, E, defG, advG, eps, out_path, model_name, label_count=True, save_img=True):
+
+    # test adversarial examples in Cifar-10 testing dataset
     cifar_dataset_test = torchvision.datasets.CIFAR10('./dataset', train=False, transform=transforms.ToTensor(),
                                                     download=True)
     test_dataloader = DataLoader(cifar_dataset_test, batch_size=batch_size, shuffle=False, num_workers=1)
 
     print('CIFAR10 test dataset:')
     tester(cifar_dataset_test, test_dataloader, device, target_model, E, defG, advG, eps, out_path, model_name, label_count, save_img)
-
 
 if __name__ == '__main__':
 
@@ -230,8 +278,8 @@ if __name__ == '__main__':
     parser.add_argument('--epoch', default=100, type=int)
     parser.add_argument('--seeds', default=0, type=int)
     parser.add_argument('--E_lr', default=0.001, type=float)
-    parser.add_argument('--advG_lr', default=0.001, type=float)
-    parser.add_argument('--defG_lr', default=0.001, type=float)
+    parser.add_argument('--advG_lr', default=0.01, type=float)
+    parser.add_argument('--defG_lr', default=0.1, type=float)
     parser.add_argument('--eps', default=0.03125, type=float)
     parser.add_argument('--parameters_count', action='store_true')
     parser.add_argument('--labels_count', action='store_true')
@@ -252,7 +300,7 @@ if __name__ == '__main__':
     pretrained_model = "./model_best.pth.tar"
     target_model = WideResNet().to(device)
     checkpoint = torch.load(pretrained_model, map_location=device)
-    target_model.load_state_dict(checkpoint)
+    target_model.load_state_dict(checkpoint['state_dict'])
     if args.parameters_count:
         print('number of parameters(model):', parameters_count(target_model))
     target_model.eval()
@@ -282,4 +330,5 @@ if __name__ == '__main__':
         print()
     defG.eval()
 
-    test_full(device, target_model, E, defG, advG, args.eps, out_path, model_name, label_count=True)
+    #test_full(device, target_model, E, defG, advG, args.eps, out_path, model_name, label_count=True)
+    test_test(device, target_model, E, defG, advG, args.eps, out_path, model_name, label_count=True)
