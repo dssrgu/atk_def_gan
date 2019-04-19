@@ -283,6 +283,7 @@ if __name__ == '__main__':
     parser.add_argument('--eps', default=0.03125, type=float)
     parser.add_argument('--parameters_count', action='store_true')
     parser.add_argument('--labels_count', action='store_true')
+    parser.add_argument('--full', action='store_true')
 
     args = parser.parse_args()
     for arg in vars(args):
@@ -330,5 +331,7 @@ if __name__ == '__main__':
         print()
     defG.eval()
 
-    #test_full(device, target_model, E, defG, advG, args.eps, out_path, model_name, label_count=True)
-    test_test(device, target_model, E, defG, advG, args.eps, out_path, model_name, label_count=True)
+    if args.full:
+        test_full(device, target_model, E, defG, advG, args.eps, out_path, model_name, label_count=True)
+    else:
+        test_test(device, target_model, E, defG, advG, args.eps, out_path, model_name, label_count=True)
