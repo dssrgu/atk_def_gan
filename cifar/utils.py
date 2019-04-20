@@ -31,6 +31,7 @@ def name_maker(args):
         '_advG{}'.format(args.advG_lr) + \
         '_defG{}'.format(args.defG_lr) + \
         '_targeted' + \
+        '_xavier' + \
         '_{}'.format(args.seeds) + '/'
 
     return model_name

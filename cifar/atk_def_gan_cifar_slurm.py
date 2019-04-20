@@ -21,7 +21,7 @@ PARAM_DICT = {
     # both
     '--seeds': [i for i in range(1)],
     '--E_lr': [0.1, 0.01, 0.001],
-    '--defG_lr': [0.025],
+    '--defG_lr': [0.025, 0.05],
     '--advG_lr': [0.01, 0.001, 0.0001],
     # main.py
     '--overwrite': ['False'],
