@@ -6,12 +6,12 @@ from advGAN import AdvGAN_Attack
 from wideresnet import WideResNet
 import argparse
 from tensorboardX import SummaryWriter
-from utils import boolean_string, name_maker, load_dataset
+from utils import boolean_string, name_maker, load_dataset, load_models
 import os
 
 use_cuda = True
 image_nc = 3
-model_num_labels = 10
+model_num_labels = 5
 BOX_MIN = 0
 BOX_MAX = 1
 pgd_iter = [1]
@@ -33,7 +33,7 @@ parser.add_argument('--epochs', default=100, type=int)
 parser.add_argument('--batch_size', default=128, type=int)
 parser.add_argument('--data', default='./dataset/real_and_fake_face')
 parser.add_argument('--seed', default=0, type=int)
-parser.add_argument('--epsilon', default=8/255, type=float)
+parser.add_argument('--epsilon', default=4/255, type=float)
 
 args = parser.parse_args()
 for arg in vars(args):
@@ -63,10 +63,12 @@ else:
 # Define what device we are using print("CUDA Available: ",torch.cuda.is_available())
 device = torch.device("cuda" if (use_cuda and torch.cuda.is_available()) else "cpu")
 
-pretrained_model = "./model_best.pth.tar"
-targeted_model = WideResNet().to(device)
+pretrained_model = "./Face_target_model.pth"
+targeted_model, _ = load_models(device)
+if torch.cuda.is_available():
+    targeted_model = torch.nn.DataParallel(targeted_model)
 checkpoint = torch.load(pretrained_model, map_location=device)
-targeted_model.load_state_dict(checkpoint['state_dict'])
+targeted_model.load_state_dict(checkpoint)
 targeted_model.eval()
 
 # FACE train dataset and dataloader declaration

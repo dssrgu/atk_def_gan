@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torchsummary import summary
+#from torchsummary import summary
 
 # not used
 class Discriminator(nn.Module):
@@ -32,7 +32,7 @@ class Discriminator(nn.Module):
 
 class Generator(nn.Module):
     def __init__(self,
-                 y_dim=10,
+                 y_dim=5,
                  adv=True,
                  ):
         super(Generator, self).__init__()
