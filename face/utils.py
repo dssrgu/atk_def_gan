@@ -79,15 +79,15 @@ def load_dataset(path, batch_size, seed):
     train_sampler = SubsetRandomSampler(train_indices)
     val_sampler = SubsetRandomSampler(val_indices)
 
-    train_loader = torch.utils.data.Dataloader(d_set, batch_size=batch_size,
+    train_loader = torch.utils.data.DataLoader(d_set, batch_size=batch_size,
                                                sampler=train_sampler)
-    val_loader = torch.utils.data.Dataloader(d_set, batch_size=batch_size,
+    val_loader = torch.utils.data.DataLoader(d_set, batch_size=batch_size,
                                              sampler=val_sampler)
 
     return train_loader, val_loader
 
 
 def load_models():
-    gen = ResNetGenerator(n_classes=2)
-    dis = ResNetAC(n_classes=2, bn=True)
+    gen = ResNetGenerator(n_classes=1)
+    dis = ResNetAC(n_classes=1, bn=True)
     return dis, gen

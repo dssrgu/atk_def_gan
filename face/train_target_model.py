@@ -20,7 +20,7 @@ if __name__ == "__main__":
 
     # training the target model
     target_model, _ = load_models()
-    target_model = target_model[0]
+    target_model = target_model.to(device)
     target_model.train()
     opt_model = torch.optim.Adam(target_model.parameters(), lr=0.001)
     epochs = 60
@@ -32,7 +32,8 @@ if __name__ == "__main__":
             train_imgs, train_labels = data
             train_imgs, train_labels = train_imgs.to(device), train_labels.to(device)
             logits_model = target_model(train_imgs)
-            loss_model = F.cross_entropy(logits_model, train_labels)
+            print(logits_model, train_labels)
+            loss_model = F.binary_cross_entropy_with_logits(logits_model, train_labels.type_as(logits_model))
             loss_epoch += loss_model
             opt_model.zero_grad()
             loss_model.backward()

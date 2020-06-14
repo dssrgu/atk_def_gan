@@ -15,9 +15,11 @@ class ResNetAC(nn.Module):
         self.block6 = Block(ch * 16, ch * 16, activation=activation, downsample=False, bn=bn)
         self.l7 = nn.Linear(ch * 16, 1)
         nn.init.xavier_uniform_(self.l7.weight, gain=1.0)
+        '''
         if n_classes > 0:
             self.l_y = nn.Linear(ch * 16, n_classes)
             nn.init.xavier_uniform_(self.l_y.weight, gain=1.0)
+        '''
 
     def forward(self, x):
         h = x
@@ -33,5 +35,8 @@ class ResNetAC(nn.Module):
         h = h.view(h.size(0), h.size(1), -1)
         h = torch.sum(h, 2)
         output = self.l7(h)
+        '''
         w_y = self.l_y(h)
         return output.view(-1), w_y
+        '''
+        return output.view(-1)
