@@ -98,7 +98,6 @@ class AdvGAN_Attack:
 
     # train single batch
     def train_batch(self, x, labels):
-
         # optimize E
         for i in range(1):
 

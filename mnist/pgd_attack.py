@@ -15,6 +15,7 @@ class PGD(object):
 
     def perturb(self, X_ori, y, itr=0):
 
+        '''
         X_nat = np.copy(X_ori)
         X = np.copy(X_nat)
 
@@ -45,3 +46,5 @@ class PGD(object):
             X = np.clip(X, 0, 1)
 
         return torch.from_numpy(X).to(self.device)
+        '''
+        return X_ori

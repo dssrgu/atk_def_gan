@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from test_adversarial_examples import test_full
 from pgd_attack import PGD
 from utils import normalized_eval
-#from utils import weights_init
+from utils import weights_init
 
 class AdvGAN_Attack:
     def __init__(self,
@@ -50,11 +50,9 @@ class AdvGAN_Attack:
         self.pgd = PGD(self.model, self.E, self.defG, self.device, self.eps)
 
         # initialize all weights
-        '''
         self.E.apply(weights_init)
         self.defG.apply(weights_init)
         self.advG.apply(weights_init)
-        '''
 
         # initialize optimizers
         self.optimizer_E = torch.optim.Adam(self.E.parameters(),

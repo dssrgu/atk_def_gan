@@ -14,9 +14,9 @@ def boolean_string(s):
 def weights_init(m):
     classname = m.__class__.__name__
     if classname.find('Conv') != -1:
-        nn.init.normal_(m.weight.data, 0.0, 0.002)
+        nn.init.normal_(m.weight.data, 0.0, 0.0002)
     elif classname.find('BatchNorm') != -1:
-        nn.init.normal_(m.weight.data, 1.0, 0.002)
+        nn.init.normal_(m.weight.data, 1.0, 0.0002)
         nn.init.constant_(m.bias.data, 0)
 
 
@@ -31,7 +31,7 @@ def name_maker(args):
         '_advG{}'.format(args.advG_lr) + \
         '_defG{}'.format(args.defG_lr) + \
         '_targeted' + \
-        '_xavier' + \
+        '_low' + \
         '_{}'.format(args.seeds) + '/'
 
     return model_name
