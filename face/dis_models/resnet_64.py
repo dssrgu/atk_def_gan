@@ -31,5 +31,6 @@ class ResNetAC(nn.Module):
         h = torch.sum(h, 2)
         output = self.l6(h)
         w_y = self.l_y(h)
-        return output.view(-1), w_y
+        #return output.view(-1)
+        return w_y
 

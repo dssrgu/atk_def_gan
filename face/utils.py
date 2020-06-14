@@ -5,8 +5,10 @@ import torch
 from torch.utils.data.sampler import SubsetRandomSampler
 import numpy as np
 
-from dis_models.resnet import ResNetAC
-from gen_models.resnet import ResNetGenerator
+from dis_models.resnet_64 import ResNetAC
+from gen_models.resnet_64 import ResNetGenerator
+
+from robustness.datasets import CustomImageNet
 
 
 # for slurm script compatibility
@@ -54,9 +56,10 @@ def normalized_eval(x, target_model, batch_size=128):
 
 
 def load_dataset(path, batch_size, seed):
+    '''
     train_transform = transforms.Compose([
-        transforms.Resize(128),
-        transforms.RandomCrop([128, 128]),
+        transforms.Resize(64),
+        transforms.RandomCrop([64, 64]),
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
     ])
@@ -85,9 +88,29 @@ def load_dataset(path, batch_size, seed):
                                              sampler=val_sampler)
 
     return train_loader, val_loader
+    '''
+    groups = [(200, 204), (281, 285), (10, 14), (371, 374), (393, 397)]
+    ds = CustomImageNet('/data_large/readonly/ImageNet-Fast/imagenet/', groups)
+    train_loader, val_loader = ds.make_loaders(batch_size=batch_size, workers=8)
+    return train_loader, val_loader
 
 
-def load_models():
-    gen = ResNetGenerator(n_classes=1)
-    dis = ResNetAC(n_classes=1, bn=True)
+def load_models(device):
+    gen = ResNetGenerator(n_classes=5).to(device)
+    dis = ResNetAC(n_classes=5).to(device)
+
+    if torch.cuda.is_available():
+        gen = torch.nn.DataParallel(gen)
+        dis = torch.nn.DataParallel(dis)
     return dis, gen
+
+
+def num_correct(output, target):
+    '''
+    pred = torch.sigmoid(output) >= 0.5
+    truth = target >= 0.5
+    num_correct = pred.eq(truth).sum()
+    '''
+    _, pred = torch.max(output, dim=1)
+    num_correct = pred.eq(target).sum()
+    return num_correct
