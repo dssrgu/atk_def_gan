@@ -11,6 +11,23 @@ from gen_models.resnet_64 import ResNetGenerator
 from robustness.datasets import CustomImageNet
 
 
+TRAIN_TRANSFORMS = transforms.Compose([
+    transforms.RandomResizedCrop(64),
+    transforms.RandomHorizontalFlip(),
+    transforms.ColorJitter(
+        brightness=0.1,
+        contrast=0.1,
+        saturation=0.1,
+    ),
+    transforms.ToTensor(),
+])
+
+TEST_TRANSFORMS = transforms.Compose([
+    transforms.Resize(64),
+    transforms.CenterCrop(64),
+    transforms.ToTensor(),
+])
+
 # for slurm script compatibility
 def boolean_string(s):
     if s not in {'False', 'True'}:
@@ -47,12 +64,14 @@ def name_maker(args):
 
 # image normalizer
 def normalized_eval(x, target_model, batch_size=128):
+    '''
     x_copy = x.clone()
     batch_size = x_copy.size()[0]
     x_copy = torch.stack([transforms.functional.normalize(x_copy[i], mean=[mu/255.0 for mu in [125.3, 123.0, 113.9]],
                                                           std=[sig/255.0 for sig in [63.0, 62.1, 66.7]]) for i in range(batch_size)])
 
-    return target_model(x_copy)
+    '''
+    return target_model(x)
 
 
 def load_dataset(path, batch_size, seed):
@@ -91,6 +110,8 @@ def load_dataset(path, batch_size, seed):
     '''
     groups = [(200, 204), (281, 285), (10, 14), (371, 374), (393, 397)]
     ds = CustomImageNet('/data_large/readonly/ImageNet-Fast/imagenet/', groups)
+    ds.transform_train = TRAIN_TRANSFORMS
+    ds.transform_test = TEST_TRANSFORMS
     train_loader, val_loader = ds.make_loaders(batch_size=batch_size, workers=8)
     return train_loader, val_loader
 

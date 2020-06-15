@@ -16,7 +16,8 @@ def launch_tasks(num_procs_on_gpu,
     nprocs = sbp_dict['nprocs']
     cpus = sbp_dict['cpus']
     mem = sbp_dict['mem']
-    gpus = sbp_dict['gpus']
+    #gpus = sbp_dict['gpus']
+    gpus = 4
 
     param_keys = [str(v) for v in param_dict.keys()]
     nkey = len(param_keys)

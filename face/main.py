@@ -30,10 +30,10 @@ parser.add_argument('--defG_lr', default=0.1, type=float)
 parser.add_argument('--logging', default='False', type=boolean_string)
 parser.add_argument('--overwrite', default='True', type=boolean_string)
 parser.add_argument('--epochs', default=100, type=int)
-parser.add_argument('--batch_size', default=128, type=int)
+parser.add_argument('--batch_size', default=512, type=int)
 parser.add_argument('--data', default='./dataset/real_and_fake_face')
 parser.add_argument('--seed', default=0, type=int)
-parser.add_argument('--epsilon', default=4/255, type=float)
+parser.add_argument('--epsilon', default=8/255, type=float)
 
 args = parser.parse_args()
 for arg in vars(args):
@@ -63,10 +63,8 @@ else:
 # Define what device we are using print("CUDA Available: ",torch.cuda.is_available())
 device = torch.device("cuda" if (use_cuda and torch.cuda.is_available()) else "cpu")
 
-pretrained_model = "./Face_target_model.pth"
+pretrained_model = "./Face_target_model2.pth"
 targeted_model, _ = load_models(device)
-if torch.cuda.is_available():
-    targeted_model = torch.nn.DataParallel(targeted_model)
 checkpoint = torch.load(pretrained_model, map_location=device)
 targeted_model.load_state_dict(checkpoint)
 targeted_model.eval()

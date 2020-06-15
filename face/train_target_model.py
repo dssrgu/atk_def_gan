@@ -21,10 +21,10 @@ if __name__ == "__main__":
     target_model, _ = load_models(device)
     target_model.train()
     opt_model = torch.optim.Adam(target_model.parameters(), lr=0.001)
-    epochs = 60
+    epochs = 100
     for epoch in range(epochs):
         loss_epoch = 0
-        if epoch == 20:
+        if epoch == 50:
             opt_model = torch.optim.Adam(target_model.parameters(), lr=0.0001)
         num_corrects = 0
         total = 0
@@ -47,12 +47,24 @@ if __name__ == "__main__":
         
 
         print('loss in epoch %d: %f' % (epoch, loss_epoch.item()))
-        print('accuracy in training set: %f\n' % (num_corrects/total))
+        print('accuracy in training set: %f' % (num_corrects/total))
+        
+        num_corrects = 0
+        total = 0
+        for i, data in enumerate(test_dataloader, 0):
+            test_img, test_label = data
+            test_img, test_label = test_img.to(device), test_label.to(device)
+            logits_model = target_model(test_img)
+            
+            num_corrects += num_correct(logits_model, test_label).item()
+            total += test_label.numel()
 
-    # save model
-    targeted_model_file_name = './Face_target_model.pth'
-    torch.save(target_model.state_dict(), targeted_model_file_name)
-    target_model.eval()
+        print('accuracy in testing set: %f\n' % (num_corrects/total))
+
+        # save model
+        targeted_model_file_name = './Face_target_model3.pth'
+        torch.save(target_model.state_dict(), targeted_model_file_name)
+        target_model.eval()
 
     # MNIST test dataset
     # mnist_dataset_test = torchvision.datasets.MNIST('./dataset', train=False, transform=transforms.ToTensor(), download=True)
@@ -63,7 +75,8 @@ if __name__ == "__main__":
         test_img, test_label = data
         test_img, test_label = test_img.to(device), test_label.to(device)
         logits_model = target_model(test_img)
-        num_corrects += num_correct(logits_model, train_labels).item()
-        total += train_labels.numel()
+        
+        num_corrects += num_correct(logits_model, test_label).item()
+        total += test_label.numel()
 
     print('accuracy in testing set: %f\n' % (num_corrects/total))

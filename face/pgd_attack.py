@@ -17,7 +17,7 @@ class PGD(object):
 
     def perturb(self, X_ori, y, itr=0):
 
-        X_nat = np.copy(X_ori)
+        X_nat = np.copy(X_ori.cpu())
         X = np.copy(X_nat)
 
         for i in range(self.num_steps):

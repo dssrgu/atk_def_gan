@@ -39,10 +39,11 @@ class Generator(nn.Module):
 
         self.adv = adv
 
-        input_c = 256
+        input_c = 64
+        orig_input_c = input_c
 
         y_decoder_lis = [
-            nn.ConvTranspose2d(y_dim, input_c, kernel_size=8, stride=1, padding=0, output_padding=0, bias=True),
+            nn.ConvTranspose2d(y_dim, input_c, kernel_size=16, stride=1, padding=0, output_padding=0, bias=True),
             nn.BatchNorm2d(input_c),
             nn.ReLU(),
         ]
@@ -57,13 +58,13 @@ class Generator(nn.Module):
         ]
 
         decoder_lis = [
-            nn.ConvTranspose2d(input_c, 128, kernel_size=3, stride=2, padding=1, output_padding=1, bias=True),
-            nn.BatchNorm2d(128),
+            nn.ConvTranspose2d(input_c, orig_input_c//2, kernel_size=3, stride=2, padding=1, output_padding=1, bias=True),
+            nn.BatchNorm2d(orig_input_c//2),
             nn.ReLU(),
-            nn.ConvTranspose2d(128, 64, kernel_size=3, stride=2, padding=1, output_padding=1, bias=True),
-            nn.BatchNorm2d(64),
+            nn.ConvTranspose2d(orig_input_c//2, orig_input_c//4, kernel_size=3, stride=2, padding=1, output_padding=1, bias=True),
+            nn.BatchNorm2d(orig_input_c//4),
             nn.ReLU(),
-            nn.Conv2d(64, 3, kernel_size=3, stride=1, padding=1, bias=True),
+            nn.Conv2d(orig_input_c//4, 3, kernel_size=3, stride=1, padding=1, bias=True),
         ]
 
 
@@ -97,23 +98,25 @@ class Encoder(nn.Module):
                  ):
         super(Encoder, self).__init__()
 
+        input_c = 64
+
         encoder_lis = [
             # cifar10: 3*32*32
-            nn.Conv2d(en_input_nc, 64, kernel_size=3, stride=1, padding=1, bias=True),
-            nn.BatchNorm2d(64),
+            nn.Conv2d(en_input_nc, input_c//4, kernel_size=3, stride=1, padding=1, bias=True),
+            nn.BatchNorm2d(input_c//4),
             nn.ReLU(),
-            nn.Conv2d(64, 64, kernel_size=3, stride=2, padding=1, bias=True),
-            nn.BatchNorm2d(64),
+            nn.Conv2d(input_c//4, input_c//4, kernel_size=3, stride=2, padding=1, bias=True),
+            nn.BatchNorm2d(input_c//4),
             nn.ReLU(),
-            nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1, bias=True),
-            nn.BatchNorm2d(128),
+            nn.Conv2d(input_c//4, input_c//2, kernel_size=3, stride=2, padding=1, bias=True),
+            nn.BatchNorm2d(input_c//2),
             nn.ReLU(),
         ]
 
         bottle_neck_lis = [
-            ResnetBlock(128, 256),
-            ResnetBlock(256, 256),
-            ResnetBlock(256, 256),
+            ResnetBlock(input_c//2, input_c),
+            ResnetBlock(input_c, input_c),
+            ResnetBlock(input_c, input_c),
             ]
 
         self.encoder = nn.Sequential(*encoder_lis)
