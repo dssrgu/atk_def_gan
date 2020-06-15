@@ -21,6 +21,9 @@ class PGD(object):
         X_nat = np.copy(X_ori.cpu())
         X = np.copy(X_nat)
 
+        X += self.eps * 2 * (np.random.uniform(0, 1, size=X.shape) - 0.5)
+        X = np.clip(X, 0, 1)
+
         for i in range(self.num_steps):
             X_var = torch.from_numpy(X).to(self.device)
             X_var.requires_grad = True
