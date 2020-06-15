@@ -34,14 +34,14 @@ if __name__ == "__main__":
     # training the target model
     target_model = MNIST_target_net().to(device)
     target_model.train()
-    opt_model = torch.optim.Adam(target_model.parameters(), lr=0.001)
-    epochs = args.epoch
+    opt_model = torch.optim.Adam(target_model.parameters(), lr=0.0001)
+    epochs = args.epochs
 
     pgd = PGD(target_model, None, None, device, args.epsilon, 7, args.epsilon/4)
     for epoch in range(epochs):
         loss_epoch = 0
         if epoch == 20:
-            opt_model = torch.optim.Adam(target_model.parameters(), lr=0.0001)
+            opt_model = torch.optim.Adam(target_model.parameters(), lr=0.00001)
 
         num_corrects = 0
         adv_num_corrects = 0
@@ -49,8 +49,11 @@ if __name__ == "__main__":
         for i, data in enumerate(train_dataloader, 0):
             train_imgs, train_labels = data
             train_imgs, train_labels = train_imgs.to(device), train_labels.to(device)
+            #print(torch.max(train_imgs))
             logits_model = target_model(train_imgs)
             adv_imgs = pgd.perturb(train_imgs, train_labels, itr=0)
+            #print(torch.max(adv_imgs-train_imgs))
+            #print(torch.min(adv_imgs-train_imgs))
             adv_logits_model = target_model(adv_imgs)
             loss_model = F.cross_entropy(adv_logits_model, train_labels)
             loss_epoch += loss_model
@@ -90,4 +93,4 @@ if __name__ == "__main__":
         total += test_label.numel()
 
     print('accuracy in testing set: %f\n' % (num_corrects/total))
-    print('accuracy in testing set: %f\n' % (adv_num_corrects/total))
+    print('adv accuracy in testing set: %f\n' % (adv_num_corrects/total))
