@@ -23,6 +23,7 @@ def weights_init(m):
 def parameters_count(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
+
 def name_maker(args):
     model_name = 'E{}'.format(args.E_lr) + \
         '_advG{}'.format(args.advG_lr) + \
@@ -32,3 +33,13 @@ def name_maker(args):
 
     return model_name
 
+
+def num_correct(output, target):
+    '''
+    pred = torch.sigmoid(output) >= 0.5
+    truth = target >= 0.5
+    num_correct = pred.eq(truth).sum()
+    '''
+    _, pred = torch.max(output, dim=1)
+    num_correct = pred.eq(target).sum()
+    return num_correct
