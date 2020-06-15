@@ -4,6 +4,7 @@ import torch.nn as nn
 from wideresnet import WideResNet
 from utils import normalized_eval
 
+
 class PGD(object):
     def __init__(self, model=None, enc=None, defG=None, device=None, eps=0.03125, num_steps=10, step_size=0.0078125):
         self.model = model

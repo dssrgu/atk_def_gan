@@ -48,7 +48,7 @@ class AdvGAN_Attack:
         self.E = models.Encoder(image_nc).to(device)
         self.defG = models.Generator(adv=False).to(device)
         self.advG = models.Generator(y_dim=model_num_labels, adv=True).to(device)
-        self.pgd = PGD(self.model, self.E, self.defG, self.device, self.eps)
+        self.pgd = PGD(self.model, self.E, self.defG, self.device, self.eps, step_size=self.eps/4)
 
         # initialize all weights
         self.E.apply(weights_init)
