@@ -40,7 +40,7 @@ if __name__ == "__main__":
         print('loss in epoch %d: %f' % (epoch, loss_epoch.item()))
 
     # save model
-    targeted_model_file_name = './MNIST_target_model.pth'
+    targeted_model_file_name = './MNIST_target_model_adv.pth'
     torch.save(target_model.state_dict(), targeted_model_file_name)
     target_model.eval()
 

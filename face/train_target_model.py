@@ -78,7 +78,7 @@ if __name__ == "__main__":
         print('accuracy in testing set: %f\n' % (num_corrects/total))
 
         # save model
-        targeted_model_file_name = './Face_target_model_adv.pth'
+        targeted_model_file_name = './Face_target_model_adv_{:.3f}.pth'.format(args.epsilon)
         torch.save(target_model.state_dict(), targeted_model_file_name)
         target_model.eval()
 
